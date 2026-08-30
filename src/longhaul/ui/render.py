@@ -1,12 +1,12 @@
-"""`.longhaul/` → one self-contained HTML file.
+"""`.longhaul/` → the interface.
 
-No server, no build step, no network. The CSS is inlined, so the page opens from
-a file:// URL, from a CI artifact, or on a machine that never ran the agent — and
-it is equally a live monitor and a post-mortem.
+One page, two ways to deliver it. `longhaul report` embeds the data as JSON in
+the document, so a single file is fully interactive with no network at all —
+filters, sorting and every view work offline, from a CI artefact, from an email
+attachment. `longhaul ui` serves the same shell and refreshes the data over SSE.
 
-`report` is in v0.1 rather than with the rest of the UI because it is the
-debugging surface for the orchestrator: reading `state.json` by hand stops
-working around day three.
+The rendering lives in `assets/app.js` rather than here on purpose: one renderer
+for both surfaces. Two would drift, and then one of them would lie.
 """
 
 from __future__ import annotations
@@ -17,146 +17,43 @@ from pathlib import Path
 
 from ..schema.plan import Plan
 from ..schema.state import DONE, FAILED, HALTED, IN_PROGRESS, PARKED, SKIPPED, State
-from .gallery import Gallery, collect
-from .redact import redact
+from .data import build
 
 ASSETS = Path(__file__).parent / "assets"
-
-STATUS_LABEL = {
-    DONE: "done", FAILED: "failed", PARKED: "parked",
-    HALTED: "halted", "in_progress": "running", "pending": "pending",
-}
+BUCKETS = (DONE, FAILED, PARKED, HALTED, IN_PROGRESS, SKIPPED, "pending")
 
 
-def _esc(text: object) -> str:
-    return html.escape(str(text), quote=True)
+def _asset(name: str) -> str:
+    return (ASSETS / name).read_text(encoding="utf-8")
 
 
-def _counts(plan: Plan, state: State) -> dict[str, int]:
-    counts = state.counts()
-    counts["pending"] += sum(1 for t in plan.tasks if t.id not in state.tasks)
-    return counts
-
-
-def _rows(plan: Plan, state: State) -> str:
-    out = []
-    for task in sorted(plan.tasks, key=lambda t: (t.day, t.id)):
-        ts = state.tasks.get(task.id)
-        status = ts.status if ts else "pending"
-        label = STATUS_LABEL.get(status, status)
-        criteria = "".join(f"<li>{_esc(c)}</li>" for c in task.acceptance_criteria)
-
-        extra = ""
-        if ts and ts.pr_url:
-            extra += (
-                f'<div class="why"><a href="{_esc(ts.pr_url)}">PR #{_esc(ts.pr_number)}</a></div>'
-            )
-        # PARKED belongs here as much as FAILED: a parked task is one waiting on
-        # a human, so hiding its reason hides the only thing they need to read.
-        if ts and ts.status in (FAILED, HALTED, PARKED) and ts.last_error:
-            # Agent output reaches the page verbatim, and report.html gets
-            # committed, attached to issues and screenshotted.
-            first = redact(ts.last_error).splitlines()[0]
-            extra += f'<div class="why">{_esc(first[:200])}</div>'
-        attempts = (
-            f" · attempt {ts.attempts}" if ts and ts.attempts > 1 else ""
-        )
-        cost = f" · ${ts.cost_usd:.2f}" if ts and ts.cost_usd else ""
-
-        out.append(
-            f'<tr class="{_esc(status)}">'
-            f'<td class="day">day {task.day}</td>'
-            f"<td><span class='dot'></span>{_esc(label)}</td>"
-            f"<td><strong>{_esc(task.title)}</strong>"
-            f"<span class='day'>{_esc(attempts)}{_esc(cost)}</span>"
-            f'<ul class="crit">{criteria}</ul>{extra}</td>'
-            "</tr>"
-        )
-    return "\n".join(out)
-
-
-def _gallery_html(gallery: Gallery) -> str:
-    """Every day's artefact, in one strip. The most persuasive thing here."""
-    if not gallery.artefacts:
-        return ""
-
-    tiles = []
-    for shot in gallery.images:
-        src = shot.data_uri or shot.href
-        caption = f"day {shot.day} · {shot.task_id}"
-        tiles.append(
-            f'<figure class="shot"><a href="{_esc(shot.href)}">'
-            f'<img src="{_esc(src)}" alt="{_esc(caption)}" loading="lazy"></a>'
-            f"<figcaption>{_esc(caption)}</figcaption></figure>"
-        )
-
-    others = "".join(
-        f'<li><a href="{_esc(a.href)}">day {a.day} · {_esc(a.path.name)}</a> '
-        f'<span class="day">{a.size // 1024} KB</span></li>'
-        for a in gallery.others
-    )
-    other_block = f'<ul class="crit">{others}</ul>' if others else ""
-
-    note = ""
-    if gallery.linked:
-        note = (
-            f'<p class="sub">{gallery.linked} image(s) too large to embed are '
-            "linked instead — they need this file's <code>.longhaul/</code> "
-            "directory alongside it.</p>"
-        )
+def shell(title: str, payload: dict | None) -> str:
+    """The document. `payload` embedded means it works with no server at all."""
+    embedded = ""
+    if payload is not None:
+        # </script> inside JSON would end the block early; escaping the slash is
+        # the standard defence and keeps it valid JSON.
+        blob = json.dumps(payload).replace("</", "<\\/")
+        embedded = f'<script type="application/json" id="longhaul-data">{blob}</script>'
 
     return (
-        "<h2>Proof</h2>"
-        + note
-        + f'<div class="gallery">{"".join(tiles)}</div>'
-        + other_block
+        "<!doctype html>\n"
+        '<html lang="en">\n'
+        '<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        '<meta name="robots" content="noindex">\n'
+        f"<title>{html.escape(title)} — Longhaul</title>\n"
+        f"<style>{_asset('app.css')}</style>\n"
+        '<div class="app">'
+        '<nav class="sidebar" id="sidebar"></nav>'
+        "<div>"
+        '<header class="topbar" id="topbar"></header>'
+        '<main id="main"></main>'
+        "</div>"
+        "</div>\n"
+        f"{embedded}\n"
+        f"<script>{_asset('app.js')}</script>\n"
     )
-
-
-def render_main(
-    plan: Plan,
-    state: State,
-    ledger: list[dict] | None = None,
-    gallery: Gallery | None = None,
-) -> str:
-    """The <main> content, so the live server can swap it without a reload."""
-    counts = _counts(plan, state)
-    ledger = ledger or []
-
-    tiles = [
-        ("done", counts[DONE]), ("failed", counts[FAILED]),
-        ("parked", counts[PARKED]), ("halted", counts[HALTED]),
-        ("running", counts[IN_PROGRESS]),
-        ("to go", counts["pending"]),
-        ("agent calls", len(ledger)),
-        ("spent", f"${state.total_cost_usd:.2f}"),
-    ]
-    tile_html = "".join(
-        f'<div class="count"><b>{_esc(v)}</b><span>{_esc(k)}</span></div>' for k, v in tiles
-    )
-
-    risks = "".join(f"<li>{_esc(r)}</li>" for r in plan.risk_flags)
-    risk_block = f"<h2>Risk flags</h2><ul class='crit'>{risks}</ul>" if risks else ""
-
-    return f"""<main>
-  <h1>{_esc(plan.project)}</h1>
-  <p class="sub">{_esc(counts[DONE])} of {_esc(len(plan.tasks))} tasks ·
-     {_esc(plan.target_days)} days · <code>{_esc(plan.profile)}</code></p>
-  <div class="counts">{tile_html}</div>
-  <h2>Plan</h2>
-  <div class="wrap"><table>
-    <thead><tr><th>Day</th><th>Status</th><th>Task and acceptance criteria</th></tr></thead>
-    <tbody>{_rows(plan, state)}</tbody>
-  </table></div>
-  {_gallery_html(gallery) if gallery else ""}
-  {risk_block}
-  <footer>
-    Generated by <a href="https://github.com/cybiqon-ai/longhaul">Longhaul</a>
-    from <code>.longhaul/</code>. No network, no tracking — this file is the
-    whole page. Last updated {_esc(state.updated_at)}.
-  </footer>
-</main>
-"""
 
 
 def render(
@@ -164,20 +61,11 @@ def render(
     state: State,
     ledger: list[dict] | None = None,
     live: bool = False,
-    gallery: Gallery | None = None,
+    root: Path | None = None,
+    embed: bool = True,
 ) -> str:
-    """The whole page. `live` adds the reconnecting update listener."""
-    css = (ASSETS / "report.css").read_text(encoding="utf-8")
-    script = f"<script>{(ASSETS / 'live.js').read_text(encoding='utf-8')}</script>" if live else ""
-    return (
-        "<!doctype html>\n"
-        '<meta charset="utf-8">\n'
-        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        f"<title>{_esc(plan.project)} — Longhaul</title>\n"
-        f"<style>{css}</style>\n"
-        f"{render_main(plan, state, ledger, gallery)}"
-        f"{script}"
-    )
+    payload = build(plan, state, ledger, root=root, embed=embed, live=live)
+    return shell(plan.project, None if live else payload)
 
 
 def write(
@@ -187,24 +75,20 @@ def write(
     ledger: list[dict] | None = None,
     root: Path | None = None,
 ) -> Path:
-    gallery = collect(root) if root else None
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(plan, state, ledger, gallery=gallery), encoding="utf-8")
+    out.write_text(render(plan, state, ledger, root=root, embed=True), encoding="utf-8")
     return out
 
 
 def summary(plan: Plan, state: State) -> dict:
-    """The same numbers as the page, for callers that want data not markup."""
-    counts = _counts(plan, state)
-    # Every status, so the numbers reconcile against `tasks`. A summary whose
-    # parts do not add up to the whole is the failure this project is named for:
-    # an in-progress task was silently missing from an earlier version of this.
-    buckets = (DONE, FAILED, PARKED, HALTED, IN_PROGRESS, SKIPPED, "pending")
+    """The headline numbers, for callers that want data rather than markup."""
+    counts = state.counts()
+    counts["pending"] += sum(1 for t in plan.tasks if t.id not in state.tasks)
     return {
         "project": plan.project,
         "target_days": plan.target_days,
         "tasks": len(plan.tasks),
-        **{k: counts[k] for k in buckets},
+        **{k: counts[k] for k in BUCKETS},
         "total_cost_usd": state.total_cost_usd,
     }
 

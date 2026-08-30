@@ -24,7 +24,7 @@ import yaml
 from ..schema.plan import Plan, PlanError
 from ..schema.state import State
 from . import render as ui_render
-from .gallery import collect
+from .data import build
 
 DEFAULT_PORT = 4321
 POLL_INTERVAL_S = 1.0
@@ -79,28 +79,32 @@ def _handler(root: Path):
             self.end_headers()
             self.wfile.write(body)
 
-        def _page(self, live: bool) -> bytes:
-            plan, state, ledger, problem = load(root)
+        def _page(self) -> bytes:
+            plan, _state, _ledger, problem = load(root)
             if plan is None:
                 return (
-                    f"<!doctype html><meta charset='utf-8'>"
+                    "<!doctype html><meta charset='utf-8'>"
                     f"<title>Longhaul</title><p>{problem}</p>"
                 ).encode()
-            # Served locally, so link rather than embed: the browser can fetch
-            # /proof/... and the page stays small however long the project runs.
-            gallery = collect(root, embed=False)
-            if live:
-                return ui_render.render(
-                    plan, state, ledger, live=True, gallery=gallery
-                ).encode()
-            return ui_render.render_main(plan, state, ledger, gallery).encode()
+            # The shell only. Data arrives from /api/data and refreshes over
+            # SSE, so the page never reloads and the served document stays small
+            # however long the project runs.
+            return ui_render.shell(plan.project, None).encode()
+
+        def _data(self) -> bytes:
+            plan, state, ledger, problem = load(root)
+            if plan is None:
+                return json.dumps({"error": problem}).encode()
+            # Link rather than embed: served locally the browser fetches them.
+            payload = build(plan, state, ledger, root=root, embed=False, live=True)
+            return json.dumps(payload).encode()
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib signature
             route = self.path.split("?", 1)[0]
             if route == "/":
-                self._send(self._page(live=True), "text/html; charset=utf-8")
-            elif route == "/fragment":
-                self._send(self._page(live=False), "text/html; charset=utf-8")
+                self._send(self._page(), "text/html; charset=utf-8")
+            elif route == "/api/data":
+                self._send(self._data(), "application/json")
             elif route == "/api/summary":
                 plan, state, _ledger, problem = load(root)
                 body = (

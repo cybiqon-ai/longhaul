@@ -94,7 +94,10 @@ def test_common_image_types_are_recognised(tmp_path, suffix):
     assert gallery.collect(tmp_path).images
 
 
-def test_the_gallery_reaches_the_page(tmp_path):
+def test_the_gallery_reaches_the_payload(tmp_path):
+    import json
+    import re
+
     import yaml
 
     from longhaul.schema.plan import Plan
@@ -115,6 +118,11 @@ milestones:
     out = tmp_path / "report.html"
     render.write(plan, State(), out, root=tmp_path)
     page = out.read_text()
-    assert "<h2>Proof</h2>" in page
-    assert "day 3 · t5" in page
-    assert "data:image/png;base64," in page
+    body = json.loads(
+        re.search(r'id="longhaul-data">(.*?)</script>', page, re.S).group(1).replace("<\\/", "</")
+    )
+    shot = body["proof"][0]
+    assert (shot["day"], shot["task"]) == (3, "t5")
+    assert shot["src"].startswith("data:image/png;base64,"), (
+        "a report must embed its images so the file stands alone"
+    )

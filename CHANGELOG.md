@@ -12,6 +12,23 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`48c001e` feat(ui): an application, not a report.** Rebuilt as a proper
+  shell — sidebar navigation, top bar, dense sortable and filterable tables —
+  after a Langfuse screenshot made clear the previous page read as a printout
+  rather than a tool. Seven views: Overview, Timeline, Tasks, **Agent runs**,
+  Spend, Proof, Risks.
+  Agent runs is the trace table, and it needed no new plumbing:
+  `ledger.jsonl` is append-only and already records one line per invocation, so
+  role, attempt, duration, cost and session id were already there.
+  Architecturally the important part is that `ui/data.py` builds **one** payload
+  and `app.js` is the **only** renderer. `longhaul report` embeds the payload;
+  `longhaul ui` serves the shell and fetches it. A single file therefore stays
+  fully interactive with no network — filters, sorting and every view work from
+  `file://` — and there is no server-rendered copy of a view to drift from the
+  client-rendered one.
+  Still no npm, no bundler, no framework, and still exactly one runtime
+  dependency. Charts are inline SVG.
+
 - **`1485b50` feat(assets): licence provenance as a gate, not paperwork.** The
   Assets role prefers generating over sourcing — a generated asset has no licence
   question, no attribution and no supply chain — and never takes anything whose

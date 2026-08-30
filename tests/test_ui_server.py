@@ -53,7 +53,7 @@ def get(url, path):
 
 # --- routes ---------------------------------------------------------------
 
-def test_the_root_serves_a_whole_page_with_the_live_listener(live):
+def test_the_root_serves_the_shell_with_the_live_listener(live):
     status, body, headers = get(live, "/")
     assert status == 200
     assert body.startswith("<!doctype html>")
@@ -62,11 +62,20 @@ def test_the_root_serves_a_whole_page_with_the_live_listener(live):
     assert headers["Content-Type"].startswith("text/html")
 
 
-def test_the_fragment_is_just_the_body_for_swapping_in(live):
-    _status, body, _ = get(live, "/fragment")
-    assert body.startswith("<main>")
-    assert "<!doctype" not in body
-    assert "EventSource" not in body, "the fragment must not re-add the listener"
+def test_the_served_shell_carries_no_data_because_it_fetches_it(live):
+    """The document stays small however long a project runs."""
+    _status, body, _ = get(live, "/")
+    assert 'id="longhaul-data"' not in body
+    assert "/api/data" in body
+
+
+def test_the_data_endpoint_returns_the_whole_payload(live):
+    _status, body, headers = get(live, "/api/data")
+    assert headers["Content-Type"] == "application/json"
+    payload = json.loads(body)
+    assert payload["project"] == "Neon Drift"
+    assert len(payload["tasks"]) == 2
+    assert sum(payload["counts"].values()) == payload["tasks_total"]
 
 
 def test_the_api_returns_the_same_numbers_as_the_page(live):
@@ -139,7 +148,7 @@ def test_a_token_in_agent_output_never_reaches_the_browser(project):
     thread = threading.Thread(target=srv.serve_forever, daemon=True)
     thread.start()
     try:
-        _status, body, _ = get(f"http://127.0.0.1:{srv.server_address[1]}", "/")
+        _status, body, _ = get(f"http://127.0.0.1:{srv.server_address[1]}", "/api/data")
         assert token not in body
         assert "redacted" in body
     finally:
@@ -225,11 +234,11 @@ def test_a_missing_artefact_is_a_404_not_a_stack_trace(live):
     assert exc.value.code == 404
 
 
-def test_the_live_page_links_artefacts_rather_than_embedding_them(project, live):
-    """Served locally the browser can fetch them, so the page stays small
+def test_the_live_payload_links_artefacts_rather_than_embedding_them(project, live):
+    """Served locally the browser fetches them, so the payload stays small
     however long the project runs."""
     _put_proof(project)
-    _status, body, _ = get(live, "/")
-    assert "Proof" in body
-    assert ".longhaul/proof/day-01/t1/screenshot.png" in body
-    assert "data:image/png;base64," not in body
+    payload = json.loads(get(live, "/api/data")[1])
+    shot = payload["proof"][0]
+    assert shot["src"] == ".longhaul/proof/day-01/t1/screenshot.png"
+    assert not shot["src"].startswith("data:")

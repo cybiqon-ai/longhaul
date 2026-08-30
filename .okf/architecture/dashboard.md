@@ -15,12 +15,43 @@ Two commands over one renderer. `longhaul report` writes a single self-contained
 
 **Built.** `ui/render.py`, `ui/server.py`, `ui/redact.py` and two asset files.
 
+# One renderer, two delivery mechanisms
+
+`ui/data.py` assembles a single JSON payload. `longhaul report` **embeds** it in
+the document; `longhaul ui` serves the shell and the browser **fetches** it from
+`/api/data`, refreshing over SSE. `ui/assets/app.js` renders from that payload
+either way.
+
+That is what lets a single file be fully interactive with no network at all —
+filters, sorting, the trace table and every view work from a `file://` URL, a CI
+artefact, or an email attachment. It also means there is one implementation of
+each view rather than a server-rendered copy and a client-rendered copy, which
+would drift until one of them lied.
+
 # No build step, on purpose
 
-One HTML template, one CSS file, one vanilla-JS file, shipped as package data;
-charts are inline SVG. No npm, no bundler, no framework. This keeps the Python
-package at exactly one runtime dependency and means a contributor can change the
-dashboard without a JavaScript toolchain.
+One CSS file and one vanilla-JS file, shipped as package data; charts are inline
+SVG. No npm, no bundler, no framework. The Python package still has exactly one
+runtime dependency, and a contributor can change the interface without a
+JavaScript toolchain.
+
+# The views
+
+An application shell — sidebar, top bar, dense tables — rather than a report.
+
+| View | What it answers |
+|---|---|
+| Overview | Where is this, and is anything waiting on me? |
+| Timeline | Every day 1..N, so slack shows as slack rather than being closed up |
+| Tasks | Filter and sort every task; expand one for criteria, diff, PR, errors |
+| Agent runs | Every invocation from `ledger.jsonl` — role, attempt, duration, cost, session |
+| Spend | Cost per day, and per role |
+| Proof | The gallery — what each day actually produced |
+| Risks | What the Planner flagged up front |
+
+**Agent runs is the trace table.** `ledger.jsonl` is append-only and already
+records one line per invocation, so the view that answers "what did it actually
+do, and what did that cost" needed no new plumbing.
 
 The pattern is proven by OKF's own `okf_visualize.py`, which produces a
 self-contained interactive graph exactly this way.
@@ -38,10 +69,10 @@ than left until v0.5 with the rest of the UI.
 
 # What it serves
 
-`GET /` is the whole page with a reconnecting `EventSource` listener;
-`/fragment` is just the `<main>` body, so an update swaps content in place
-rather than reloading and losing scroll position; `/api/summary` is the same
-numbers as JSON; `/events` is the SSE stream.
+`GET /` is the shell; `/api/data` is the whole payload; `/api/summary` is the
+headline numbers; `/events` is the SSE stream; `/.longhaul/proof/...` serves
+artefacts. An update re-fetches the payload and re-renders in place, so scroll
+position and the open row survive.
 
 The server watches the mtime and size of `state.json`, `plan.yaml` and
 `ledger.jsonl` and pushes an `update` event when any changes — so the browser
