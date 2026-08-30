@@ -32,7 +32,9 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Lint
-        run: ruff check --output-format=concise . | tee ruff.out; echo "ruff findings: $(wc -l < ruff.out)"
+        run: |
+          ruff check --output-format=concise . | tee ruff.out
+          echo "ruff findings: $(wc -l < ruff.out)"
 
       - name: Test
         run: pytest -v --junitxml=junit.xml
