@@ -29,6 +29,7 @@ from .gates.secrets import SecretsGate
 from .schema.config import Config
 from .schema.plan import Plan, PlanError
 from .schema.state import DONE, FAILED, HALTED, PARKED
+from .ui import render as ui_render
 
 NOT_YET = 2
 
@@ -248,6 +249,29 @@ def cmd_run(args: argparse.Namespace) -> int:
     return outcome.exit_code
 
 
+def cmd_report(args: argparse.Namespace) -> int:
+    """Write a self-contained HTML page from .longhaul/. No server, no network."""
+    root = Path.cwd()
+    plan = _load_plan()
+    state = state_io.load(root)
+    ledger = state_io.read_ledger(root)
+
+    if args.json:
+        print(ui_render.to_json(plan, state))
+        return 0
+
+    out = ui_render.write(plan, state, Path(args.out), ledger)
+    summary = ui_render.summary(plan, state)
+    print(f"wrote {out}  ({out.stat().st_size:,} bytes)")
+    print(
+        f"tasks: {summary['tasks']}  done: {summary['done']}  failed: {summary['failed']}  "
+        f"parked: {summary['parked']}  halted: {summary['halted']}  "
+        f"running: {summary['in_progress']}  pending: {summary['pending']}  "
+        f"spent: ${summary['total_cost_usd']:.2f}"
+    )
+    return 0
+
+
 def cmd_kill(args: argparse.Namespace) -> int:
     """Stop the run in progress — the whole process group, not just the parent.
 
@@ -379,6 +403,11 @@ def build_parser() -> argparse.ArgumentParser:
     k = sub.add_parser("kill", help="stop the run in progress")
     k.set_defaults(func=cmd_kill)
 
+    rp = sub.add_parser("report", help="write a self-contained HTML report")
+    rp.add_argument("--out", default="report.html", help="where to write it")
+    rp.add_argument("--json", action="store_true", help="print the numbers instead")
+    rp.set_defaults(func=cmd_report)
+
     i = sub.add_parser("init", help="prepare a repository for longhaul")
     i.add_argument("--target", default="target.md", help="the target file to create or keep")
     i.add_argument("--profile", default="flutter-android", help="project stack")
@@ -390,7 +419,6 @@ def build_parser() -> argparse.ArgumentParser:
     i.set_defaults(func=cmd_init)
 
     planned = {
-        "report": "v0.1",
         "ui": "v0.2",
         "rollback": "v0.2",
     }

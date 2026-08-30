@@ -10,7 +10,7 @@ def test_version_flag():
 
 
 def test_planned_commands_exit_two(capsys):
-    assert main(["report"]) == 2
+    assert main(["ui"]) == 2
     assert "not implemented yet" in capsys.readouterr().out
 
 

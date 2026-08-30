@@ -12,6 +12,20 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`82bad72` feat(report): a self-contained HTML page from `.longhaul/`.**
+  `longhaul report` writes one file with the CSS inlined and zero external
+  resources, so it opens from `file://`, from a CI artifact, or on a machine that
+  never ran the agent — equally a live monitor and a post-mortem. `--json` prints
+  the same numbers as data. Every task with its acceptance criteria, why anything
+  failed or is waiting, PR links, risk flags, light and dark.
+  *Found by rendering the real project:* the header said `tasks: 17` while the
+  buckets summed to 16 — an `in_progress` task was in no bucket at all. A summary
+  whose parts do not add up to the whole is the failure this project is named
+  for. Every status is now reported, with a parametrised test asserting the
+  counts reconcile against the task total.
+  *Also found by a test:* the page hid the reason a task was **parked**, which is
+  precisely the task a human has to act on.
+
 - **`0c884f4` feat(init): prepare a repository, and refuse if it is not ready.**
   `longhaul init` writes `.longhaul/config.yml`, a `target.md` skeleton and the
   right `.gitignore` lines, then runs `doctor` and prints the next four commands.
