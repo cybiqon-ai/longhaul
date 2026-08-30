@@ -63,12 +63,14 @@ Coder writes code and DevOps verifies it, but nothing is committed or pushed.
 | **Git Ops** | ✅ conventional commit, push, PR, **and verifies a CI run actually started** |
 | **Notifier** | ✅ Telegram, pluggable, never raises, confirms a `message_id` |
 | **Supervisor** | ✅ cost/day/task ceilings, attempt budget, loop detection, `flock`, `kill` |
-| Designer · Assets · Reviewer · Scribe · Issues | — |
+| Designer · Assets | ✅ |
+| Reviewer · Scribe · Issues | — |
 | `plan.yaml` + `state.json` contracts | ✅ validated hard, 87 tests |
 | Cheat gate | ✅ runs before the build, blocks the task |
 | secrets gate | ✅ blocks before push; `# longhaul: allow-secret` pragma warns on every use |
+| provenance gate | ✅ no asset ships without a licence row |
 | deps · coverage ratchet gates | — |
-| Proof gate | — |
+| Proof gate | ✅ `requires:` vs `steps:` — could-not-run is not a failure |
 
 **Changed from this plan while building it:**
 
@@ -95,6 +97,12 @@ Coder writes code and DevOps verifies it, but nothing is committed or pushed.
 7. **Deleted tests are counted net, not gross.** Blocking a rewrite that adds
    more tests than it removes teaches an agent never to touch tests at all,
    which is the opposite of the intent.
+8. **`needs_human` runs the work, then parks.** Every such task in a real plan
+   asks for the material the decision rests on. Parking with nothing produced
+   nothing to decide from and stalled the reference project on day 2 of 14.
+9. **Proof separates `requires:` from `steps:`.** A machine with no emulator has
+   demonstrated nothing either way; failing there would burn a retry budget on
+   every developer machine. Could-not-run is a third state, not a failure.
 
 ---
 
@@ -152,8 +160,8 @@ to answer").
 | **Git Ops** ✅ | Worktree, conventional commit, push, open PR, and verify a CI run actually started. Deterministic, not an agent | Per task |
 | **Notifier** ✅ | Telegram digest, failure alerts, decision requests. Never raises; a confirmed `message_id` is the only evidence it landed | Every interesting transition |
 | **Supervisor** ✅ | Wraps every agent call: retry budget, loop detection, cost/time ceilings, hard halt | Continuous |
-| **Designer** `v0.3` | Day-1 design system (palette, type scale, spacing, motion, tone) + per-screen specs. Later UI tasks are checked against it | Once, then per UI task |
-| **Assets** `v0.3` | Sprites, icons, audio; writes `assets/CREDITS.md` with license provenance | Per asset task |
+| **Designer** ✅ | Day-1 design system (palette, type scale, spacing, motion, tone) + per-screen specs. Later UI tasks are checked against it | Once, then per UI task |
+| **Assets** ✅ | Sprites, icons, audio; writes `assets/CREDITS.md` with license provenance | Per asset task |
 | **Reviewer** `v0.4` | Diffs the change against the task's acceptance criteria; flags scope creep, security, breaking changes; writes ADRs | Per task, pre-merge |
 | **Scribe** `v0.4` | README, CHANGELOG, `docs/devlog/day-NN.md`, and the repo's `.okf/` knowledge bundle | Per task |
 | **Issues** `v0.4` | Opens a GitHub issue per planned task, closes on merge, files bugs on failure, maintains labels/milestones | Per task |
@@ -276,7 +284,7 @@ no model in the loop:
 This is *report a count, not a status* applied to an agent. A green check that
 ran zero tests is the failure this gate exists to prevent.
 
-### 3. The Proof gate — does it actually run? `— not started`
+### 3. The Proof gate — does it actually run? `✅ BUILT`
 Tests passing ≠ the app works. Every task declares what proof means. For the
 Android game: build APK → boot emulator → `adb install` → drive it → screenshot →
 a vision check that the screenshot matches the day's acceptance criteria *and*
@@ -284,7 +292,7 @@ the design system. For web: Playwright + screenshot. Artifacts land in
 `.longhaul/proof/day-NN/`, so "day 7 shipped" is a picture, not a claim. Without
 this, "end to end" is not real.
 
-### 4. Designer and a design system on day 1
+### 4. Designer and a design system on day 1 `✅ BUILT`
 Day 1 produces `design/design-system.md` — palette, type scale, spacing, motion,
 tone of voice — plus per-screen specs. Every later UI task is diffed against it,
 which is what stops the app drifting into template mush by day 10. Asset pipeline
@@ -321,7 +329,7 @@ scheduled pipeline whose Claude CLI had logged out reported `OAuth session
 expired` in a way that read as success, and ran empty for four consecutive
 nights. Longhaul treats that as a hard, loud failure.
 
-### 9. Project profiles `✅ BUILT` (one: flutter-android)
+### 9. Project profiles `✅ BUILT` (flutter-android, nextjs-web)
 `profiles/flutter-android.yml`, `nextjs-web.yml`, `python-api.yml`, … carrying
 build/test/lint/run/smoke commands and gate definitions, so DevOps never guesses
 at a stack. Users add their own; this is how Longhaul stays honest across
@@ -483,9 +491,10 @@ Sized for 1–2 h/day. Each ends at something demonstrable.
   feedback, loop detection, ceilings), the cheat and secrets gates, scheduling
   (cron + systemd + GitHub Actions templates), resume-after-crash, `ui` live on
   :4321, `rollback`. All shipped.
-- **v0.3 — it makes something you can look at** Designer, design system, asset
-  pipeline, the Proof gate (emulator + screenshot + vision check), profiles,
-  **the proof gallery**.
+- **v0.3 — it makes something you can look at** ✅ Designer and the design
+  system, the Assets role with licence provenance, the Proof gate (build →
+  device → screenshot → Inspector), a second profile, and the proof gallery.
+  All shipped.
 - **v0.4 — it runs the repo** Reviewer + ADRs, Scribe (README/CHANGELOG/devlog/
   `.okf/`), Issues agent, Telegram commands and **the dashboard's Needs-you
   actions over one shared command layer**, releases with artifacts.

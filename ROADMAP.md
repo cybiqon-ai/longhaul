@@ -24,11 +24,13 @@ Scheduling templates ✅ (cron, systemd, GitHub Actions, written by
 `longhaul ui` ✅ — the report served live on `:4321` over SSE, localhost-only,
 with credentials redacted before anything reaches a browser.
 
-## v0.3 — it makes something you can look at
+## v0.3 — it makes something you can look at ✅
 
-Designer and the day-1 design system. Asset pipeline with license provenance.
-The Proof gate — build, emulator, screenshot, vision check. Project profiles.
-The proof gallery in the dashboard.
+Designer ✅ and the day-1 design system. Assets ✅ with licence provenance,
+enforced by a gate — no asset ships without a `CREDITS.md` row. The Proof gate ✅
+— build, device, screenshot, Inspector — which separates "this machine cannot
+demonstrate it" from "the change is broken". A second profile ✅ (`nextjs-web`).
+The proof gallery ✅ in both the report and the live UI.
 
 ## v0.4 — it runs the repo
 

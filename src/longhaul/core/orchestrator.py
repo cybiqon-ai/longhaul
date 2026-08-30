@@ -21,6 +21,7 @@ from .. import profiles, roles
 from ..driver.base import AgentDriver, AgentRequest
 from ..gates import proof as proof_gate
 from ..gates.cheat import CheatGate
+from ..gates.provenance import ProvenanceGate
 from ..gates.secrets import SecretsGate
 from ..schema.config import Config
 from ..schema.plan import Plan, Task
@@ -36,7 +37,7 @@ DEFAULT_MAX_ATTEMPTS = 3
 CODER_TOOLS = ["Read", "Glob", "Grep", "Edit", "Write", "Bash"]
 
 #: Which role implements a task. Everything not listed goes to the Coder.
-ROLE_FOR_KIND = {"design": "designer"}
+ROLE_FOR_KIND = {"design": "designer", "asset": "assets"}
 
 
 @dataclass
@@ -136,7 +137,7 @@ def run_task(
 
     diff = worktree.diff(tree.path, ts.base_sha or tree.base_sha)
     blocking: list[str] = []
-    for gate in (CheatGate(), SecretsGate()):
+    for gate in (CheatGate(), SecretsGate(), ProvenanceGate()):
         blocking += [str(f) for f in gate.check(diff).findings if f.severity == "block"]
     if blocking:
         ts.findings = blocking

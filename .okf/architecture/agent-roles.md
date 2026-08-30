@@ -14,7 +14,7 @@ general agent. Each is a markdown prompt in `src/longhaul/roles/`, written in th
 numbered-protocol style ("▶ STEP N", "run autonomously, there is nobody to
 answer").
 
-**Three of the twelve are implemented: the Planner, the Coder and DevOps.**
+**Six of the twelve are implemented: Planner, Coder, DevOps, Git Ops, Designer and Assets** — plus the Inspector, which is not in the original twelve and judges the proof artefact.
 The Planner reads a target and returns a validated plan, with read-only tools so
 it can always be safely re-run. The Coder implements one task in an isolated
 worktree. DevOps is **not an agent** — see below. The Orchestrator exists but
@@ -31,8 +31,8 @@ stops before git. The other eight are specifications.
 | Git Ops | Worktree, conventional commit, push, PR, link issue | v0.1 |
 | Notifier | Telegram digest, failure alerts, decision requests | v0.1 |
 | Supervisor | Retry budget, loop detection, cost and wall-clock ceilings | v0.2 |
-| Designer | Day-1 design system, then per-screen specs | v0.3 |
-| Assets | Sprites, icons, audio, and `assets/CREDITS.md` provenance | v0.3 |
+| Designer **(built)** | Day-1 design system, then per-screen specs | v0.3 |
+| Assets **(built)** | Sprites, icons, audio, and `assets/CREDITS.md` provenance | v0.3 |
 | Reviewer | Diff vs acceptance criteria; scope creep, security; writes ADRs | v0.4 |
 | Scribe | README, CHANGELOG, devlog, and the project's own `.okf/` bundle | v0.4 |
 | Issues | An issue per task, closed by its PR; bugs on failure | v0.4 |

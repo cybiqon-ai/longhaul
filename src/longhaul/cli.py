@@ -25,6 +25,7 @@ from .core import state as state_io
 from .core.lock import AlreadyRunning, acquire
 from .driver.cli_driver import ClaudeAuthError, CliDriver
 from .gates.cheat import CheatGate
+from .gates.provenance import ProvenanceGate
 from .gates.secrets import SecretsGate
 from .schema.config import Config
 from .schema.plan import Plan, PlanError
@@ -51,7 +52,7 @@ def cmd_gate(args: argparse.Namespace) -> int:
         ).stdout
 
     findings, checked = [], 0
-    for gate in (CheatGate(), SecretsGate()):
+    for gate in (CheatGate(), SecretsGate(), ProvenanceGate()):
         result = gate.check(diff)
         findings += result.findings
         checked = max(checked, result.checked)

@@ -2,6 +2,30 @@
 
 ## 2026-08-30
 
+* **Creation**: [Proving it](/architecture/proving-it.md) — the Proof gate, the
+  Designer, the Assets role with a provenance gate, a second profile, and the
+  proof gallery. **v0.3 is complete.**
+
+  Three findings, each caught a different way. Reading the real plan showed every
+  `needs_human` task's criteria asking for the material a decision rests on, so
+  parking without running stalled the reference project on day 2 of 14. Wiring
+  proof into the loop hung the whole test suite on `adb wait-for-device`. Running
+  it for real reported FAILED when `adb` was installed but no device attached,
+  which would burn a retry budget on every machine without an emulator — hence
+  `requires:` separate from `steps:`, and could-not-run as a third state.
+
+* **Creation**: `gates/provenance.py` — no newly added image, font or audio file
+  ships without a row in `assets/CREDITS.md`. An application pulled from a store
+  over an unlicensed font is pulled for the licence, not for the font, and months
+  later the only record is what was written down at the time. Build outputs,
+  vendored directories and proof screenshots are not shipped assets and are
+  ignored.
+
+* **Update**: The proof route in the live server reads files off disk by URL, so
+  its path-traversal protection is proven by tests rather than assumed —
+  including percent-encoded attempts, since decoding after the check would be
+  worse than not checking at all.
+
 * **Update**: [The dashboard](/architecture/dashboard.md) is **built**, which
   completes v0.2. `longhaul ui` serves the report on :4321 from stdlib
   `http.server` — no framework, no build step, one dependency still — with live

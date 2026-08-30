@@ -12,6 +12,18 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`1485b50` feat(assets): licence provenance as a gate, not paperwork.** The
+  Assets role prefers generating over sourcing — a generated asset has no licence
+  question, no attribution and no supply chain — and never takes anything whose
+  licence it cannot state. `gates/provenance.py` blocks any newly added image,
+  font or audio file with no row in `assets/CREDITS.md`. Build outputs, vendored
+  directories and `.longhaul/proof/` screenshots are not shipped assets and are
+  ignored.
+  An application pulled from a store over an unlicensed font is pulled for the
+  licence, not for the font, and months later the only record is what was written
+  down at the time.
+  **This completes v0.3.**
+
 - **`b1ddab9` feat(gallery): every day's proof in one strip, and a second
   profile.** The gallery is the most persuasive thing this tool produces —
   fourteen screenshots of an application visibly appearing, one per day, each
