@@ -65,8 +65,18 @@ resumes rather than restarts.
 longhaul init --profile flutter-android   # config, target skeleton, doctor
 longhaul plan --days 14                   # a real dependency-ordered plan
 longhaul run                              # one day's work, gated and tested
-longhaul ui                               # watch it on localhost:4321
+longhaul ui                               # the interface, on localhost:4321
 ```
+
+`longhaul ui` is a full application, not a status page: every project on your
+machine, a day-by-day timeline, a sortable task table, **every agent run with
+what it cost**, and **Chats** — each run's whole transcript read back as a
+conversation, with its tool calls and results. It ships pre-built inside the
+package, so there is no Node and no build step; it binds to localhost only, and
+credentials are redacted before anything reaches a browser.
+
+`longhaul report` writes the same data as one self-contained HTML file you can
+attach to an issue or email to someone who has neither the repo nor a runtime.
 
 It does **not** yet commit, push, or open a PR — Git Ops, the Notifier, and the
 Supervisor's cost and wall-clock ceilings are the next slice. See

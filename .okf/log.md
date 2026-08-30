@@ -26,6 +26,26 @@
   including percent-encoded attempts, since decoding after the check would be
   worse than not checking at all.
 
+* **Update**: [The dashboard](/architecture/dashboard.md) is now **two surfaces
+  over one API**: a Next.js 16 application statically exported and committed into
+  the Python wheel, plus the existing single-file report. Users still need no
+  Node — `uv tool install longhaul-ai` and the interface is there. New routes:
+  a home screen listing every project on the machine, and **Chats**, which reads
+  a stored transcript back as a conversation.
+
+  Three bugs are recorded there because each was invisible to the layer below it.
+  The whole interface rendered **unstyled** — every utility used Tailwind 3
+  arbitrary-value syntax, which Tailwind 4 silently generates nothing for, while
+  the build, typecheck, 396 tests and four CI jobs were all green. Then the
+  Projects page rendered **232px wide**, because the shell reserved a sidebar
+  column on a page with no sidebar; every class was correct, so no stylesheet
+  check could catch it — a screenshot did. And the export was **not
+  reproducible**, so CI's staleness check could never pass.
+
+  The pattern is worth naming: the tool has an Inspector that looks at a
+  screenshot and judges it against acceptance criteria, and nothing of the kind
+  pointed at its own interface.
+
 * **Update**: [The dashboard](/architecture/dashboard.md) is **built**, which
   completes v0.2. `longhaul ui` serves the report on :4321 from stdlib
   `http.server` — no framework, no build step, one dependency still — with live

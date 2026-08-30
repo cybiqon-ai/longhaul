@@ -12,6 +12,14 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`cba9e39` docs: record the interface that was built.** The Next.js
+  application — 108 files, the largest change of the day — existed in no
+  documentation at all. `.okf/architecture/dashboard.md` now describes both
+  surfaces and the three bugs each of which was invisible to the layer below it
+  (unstyled page, 232px layout, non-reproducible export), and the README says
+  what `longhaul ui` actually is. The repo's own `CLAUDE.md` requires the bundle
+  to move in the same pass as the code, and it did not.
+
 - **`1530bd8` fix(web): the Projects page rendered 232px wide.** The shell
   applied `md:grid-cols-[232px_1fr]` unconditionally, but Projects has no
   sidebar — so its single child landed in the *first* column and the whole page

@@ -3,7 +3,7 @@ type: Concept
 title: The dashboard
 description: A self-contained HTML report and a stdlib http.server on :4321, with no npm and no build step — and the reason it is the project's most important marketing artifact.
 resource: https://github.com/cybiqon-ai/longhaul/tree/main/src/longhaul/ui
-tags: [architecture, dashboard, ui, stdlib, sse, implemented]
+tags: [architecture, dashboard, ui, nextjs, sse, implemented]
 timestamp: 2026-08-30T00:00:00Z
 ---
 
@@ -14,6 +14,24 @@ Two commands over one renderer. `longhaul report` writes a single self-contained
 `http.server.ThreadingHTTPServer` on port 4321, with live updates over SSE.
 
 **Built.** `ui/render.py`, `ui/server.py`, `ui/redact.py` and two asset files.
+
+# Two surfaces, one API
+
+**The application** is Next.js 16, React 19, Tailwind 4, TanStack Table and
+Recharts, statically exported and **committed into the Python wheel**. A user
+runs `uv tool install longhaul-ai` and has the interface: no Node, no npm, no
+build step. Contributors need a JavaScript toolchain; users never do. CI builds
+it and fails if the committed export is stale.
+
+Routes: `/` lists every project on this machine; `/p/<id>` carries Overview,
+Timeline, Tasks, Agent runs, **Chats**, Spend, Proof and Risks. Chats reads a
+stored transcript back as a conversation, with its tool calls, their results and
+any API retries the CLI recovered from.
+
+**The report** is `longhaul report` — still one self-contained HTML file with
+its data embedded, for a CI artefact or an email attachment. The server falls
+back to it when no export is bundled, so a source checkout works before anyone
+runs a frontend build.
 
 # One renderer, two delivery mechanisms
 
@@ -28,12 +46,28 @@ artefact, or an email attachment. It also means there is one implementation of
 each view rather than a server-rendered copy and a client-rendered copy, which
 would drift until one of them lied.
 
-# No build step, on purpose
+# Three bugs the tests could not have caught
 
-One CSS file and one vanilla-JS file, shipped as package data; charts are inline
-SVG. No npm, no bundler, no framework. The Python package still has exactly one
-runtime dependency, and a contributor can change the interface without a
-JavaScript toolchain.
+Worth recording together, because each was invisible to the layer below it.
+
+**The whole interface rendered unstyled.** Every utility was written
+`bg-[--color-panel]` — Tailwind 3 arbitrary-value syntax. Tailwind 4 does not
+error on it, it *silently generates nothing*. Build succeeded, stylesheet emitted
+and linked, typecheck clean, 396 tests green, CI green — and the page referenced
+classes that did not exist. Fixed by using the utilities `@theme` already
+generates. `tests/test_static_export.py` now checks the **built** export, because
+the source looked correct throughout.
+
+**Then the Projects page rendered 232px wide.** The shell applied
+`md:grid-cols-[232px_1fr]` unconditionally, and that page has no sidebar, so its
+only child landed in the sidebar's column. Every class was correct; a stylesheet
+check says nothing about the layout it produces. Found by looking at a
+screenshot — which is the argument the [Proof gate](proving-it.md) makes about
+other people's projects, landing on this one.
+
+**The export was not reproducible.** Next randomises a build id per build and
+bakes it into every path, so an identical rebuild produced a 55-file diff and
+CI's staleness check could never pass. The id is now a hash of the source.
 
 # The views
 
