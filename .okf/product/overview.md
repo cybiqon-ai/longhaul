@@ -23,18 +23,24 @@ is configured.**
 Created 30 Aug 2026. As of that date the repository contains:
 
 - `plan.md` — the full design. This is the real specification.
-- `src/longhaul/cli.py` — argparse surface. `doctor` and `gate` work; the other
-  nine subcommands are registered and exit 2 with a pointer to `ROADMAP.md`.
+- `src/longhaul/cli.py` — argparse surface. `doctor`, `gate`, `plan` and
+  `simulate` work; the remaining seven subcommands are registered and exit 2
+  with a pointer to `ROADMAP.md`.
 - `src/longhaul/doctor.py` — preflight checks, including a real round-trip
   through the `claude` CLI.
 - `src/longhaul/driver/` — the `AgentDriver` protocol and a working subprocess
   wrapper around `claude -p --output-format json`. **Never called by anything.**
 - `src/longhaul/gates/cheat.py` — the cheat detector. Works, and is tested.
-- `src/longhaul/profiles/flutter-android.yml` — one profile. Never loaded.
-- 21 passing tests, ruff clean, CI configured.
+- `src/longhaul/schema/plan.py` — the `plan.yaml` contract and its validator.
+- `src/longhaul/core/planner.py` + `roles/planner.md` — **the Planner, working**:
+  it reads a target file, plans N days, and writes a validated `plan.yaml`.
+- `src/longhaul/profiles/` — one profile, loaded and summarised into the
+  Planner's prompt.
+- 56 passing tests, ruff clean, CI green.
 
-**No orchestrator exists. No Planner exists. Nothing has ever run a day's work.**
-Every agent role named in `plan.md` is a specification.
+**No orchestrator exists, and nothing has ever executed a day's work.** The
+Planner produces a plan; nothing yet consumes one. The other eleven roles named
+in `plan.md` are specifications.
 
 # Why it is unusual
 

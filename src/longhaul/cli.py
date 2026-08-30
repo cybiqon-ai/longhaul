@@ -12,8 +12,13 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, doctor
+import yaml
+
+from . import __version__, doctor, profiles
+from .core import planner
+from .driver.cli_driver import ClaudeAuthError, CliDriver
 from .gates.cheat import CheatGate
+from .schema.plan import Plan, PlanError
 
 NOT_YET = 2
 
@@ -56,6 +61,70 @@ def cmd_gate(args: argparse.Namespace) -> int:
     return 1 if result.blocked else 0
 
 
+def _plan_or_die(args: argparse.Namespace) -> tuple[Plan, float]:
+    try:
+        return planner.run(
+            CliDriver(),
+            target=Path(args.target),
+            days=args.days,
+            profile_name=args.profile,
+            model=args.model,
+        )
+    except ClaudeAuthError as exc:
+        print(f"claude is not usable: {exc}")
+        print("run `longhaul doctor` — an expired session can look like success.")
+        raise SystemExit(1) from exc
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"cannot plan: {exc}")
+        raise SystemExit(1) from exc
+    except PlanError as exc:
+        print("the planner produced a plan that cannot be executed:")
+        for problem in exc.problems:
+            print(f"  ✗ {problem}")
+        print(f"\nproblems: {len(exc.problems)}")
+        raise SystemExit(1) from exc
+
+
+def cmd_plan(args: argparse.Namespace) -> int:
+    """Plan the project and write .longhaul/plan.yaml."""
+    out = Path(planner.PLAN_PATH)
+    if out.exists() and not args.force:
+        print(f"{out} already exists. Re-plan with --force, or read it with `longhaul simulate`.")
+        return 1
+
+    plan, cost = _plan_or_die(args)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(yaml.safe_dump(plan.to_dict(), sort_keys=False, allow_unicode=True), "utf-8")
+
+    print(planner.render(plan))
+    print(f"\nwritten to {out}   cost: ${cost:.2f}")
+    return 0
+
+
+def cmd_simulate(args: argparse.Namespace) -> int:
+    """Show the arc without writing anything."""
+    if args.from_file:
+        source = Path(args.from_file)
+        try:
+            plan = Plan.from_dict(yaml.safe_load(source.read_text(encoding="utf-8")))
+        except FileNotFoundError:
+            print(f"no plan at {source}")
+            return 1
+        except PlanError as exc:
+            print(f"{source} is not a usable plan:")
+            for problem in exc.problems:
+                print(f"  ✗ {problem}")
+            print(f"\nproblems: {len(exc.problems)}")
+            return 1
+        cost = 0.0
+    else:
+        plan, cost = _plan_or_die(args)
+
+    print(planner.render(plan))
+    print(f"\nnothing was written   cost: ${cost:.2f}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="longhaul",
@@ -73,10 +142,35 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--rev", default="HEAD", help="git rev to diff against (default: HEAD)")
     g.set_defaults(func=cmd_gate)
 
+    for name, help_text in (
+        ("plan", "plan the project and write .longhaul/plan.yaml"),
+        ("simulate", "show the day-by-day arc without writing anything"),
+    ):
+        c = sub.add_parser(name, help=help_text)
+        c.add_argument("--target", default="target.md", help="the target file (default: target.md)")
+        c.add_argument("--days", type=int, default=14, help="deadline in days (default: 14)")
+        c.add_argument(
+            "--profile",
+            default="flutter-android",
+            choices=profiles.available(),
+            help="project stack",
+        )
+        c.add_argument("--model", help="override the model for this role")
+        if name == "plan":
+            c.add_argument("--force", action="store_true", help="overwrite an existing plan")
+            c.set_defaults(func=cmd_plan)
+        else:
+            c.add_argument(
+                "--from",
+                dest="from_file",
+                nargs="?",
+                const=str(planner.PLAN_PATH),
+                help="render an existing plan instead of generating one",
+            )
+            c.set_defaults(func=cmd_simulate)
+
     planned = {
         "init": "v0.1",
-        "plan": "v0.1",
-        "simulate": "v0.1",
         "run": "v0.1",
         "status": "v0.1",
         "report": "v0.1",

@@ -48,17 +48,18 @@ def check_claude_authenticated() -> Check:
     We ask for a one-word answer with no tools. A logged-out CLI reports the
     failure as the *result* on stdout while still being easy to mistake for a
     successful run, so an empty or error-shaped result is treated as failure.
+
+    Deliberately **not** `--bare`: bare mode never reads OAuth credentials or the
+    system keychain, so it fails on a machine whose `claude` is perfectly logged
+    in on a subscription. A preflight check that exercises a different
+    credential path from the real work is worse than no check at all.
     """
     if _which("claude") is None:
         return Check("claude authenticated", False, "skipped — claude not installed")
 
-    if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("CLAUDE_CODE_OAUTH_TOKEN")):
-        detail = "no ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN in the environment"
-        return Check("claude authenticated", False, detail)
-
     try:
         proc = subprocess.run(
-            ["claude", "--bare", "-p", "Reply with the single word: ok"],
+            ["claude", "-p", "Reply with the single word: ok"],
             capture_output=True,
             text=True,
             timeout=TIMEOUT_S,
@@ -68,13 +69,30 @@ def check_claude_authenticated() -> Check:
 
     out = (proc.stdout or "").strip()
     if proc.returncode != 0:
-        return Check("claude authenticated", False, f"exit {proc.returncode}: {out[:200]}")
+        return Check("claude authenticated", False, f"exit {proc.returncode}: {_remedy(out)}")
     if not out:
-        return Check("claude authenticated", False, "empty response — treat as logged out")
+        return Check("claude authenticated", False, f"empty response — {_remedy('')}")
     lowered = out.lower()
     if any(s in lowered for s in ("session expired", "not authenticated", "please run", "login")):
-        return Check("claude authenticated", False, f"auth error in result: {out[:200]}")
-    return Check("claude authenticated", True, "round-tripped a prompt")
+        return Check("claude authenticated", False, _remedy(out))
+    return Check("claude authenticated", True, f"round-tripped a prompt ({_credential_source()})")
+
+
+def _credential_source() -> str:
+    """Which credential the CLI would use. Reported, never required."""
+    if os.environ.get("ANTHROPIC_API_KEY"):
+        return "ANTHROPIC_API_KEY"
+    if os.environ.get("CLAUDE_CODE_OAUTH_TOKEN"):
+        return "CLAUDE_CODE_OAUTH_TOKEN"
+    return "the CLI's own stored login"
+
+
+def _remedy(out: str) -> str:
+    head = f"{out[:160]} — " if out else ""
+    return (
+        f"{head}run `claude -p ok` yourself. If that fails, log in with `claude`, "
+        "or set ANTHROPIC_API_KEY, or run `claude setup-token` for CLAUDE_CODE_OAUTH_TOKEN."
+    )
 
 
 def check_git_identity() -> Check:

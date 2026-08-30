@@ -37,3 +37,50 @@ def test_gate_fails_on_an_empty_diff(tmp_path, capsys):
     empty.write_text("")
     assert main(["gate", "--diff", str(empty)]) == 1
     assert "not a pass" in capsys.readouterr().out
+
+
+def test_plan_and_simulate_are_real_commands():
+    parser = build_parser()
+    names = set([a for a in parser._actions if a.dest == "command"][0].choices)
+    assert {"plan", "simulate"} <= names
+
+
+def test_simulate_renders_an_existing_plan_without_calling_the_model(tmp_path, capsys, monkeypatch):
+    import yaml
+
+    from longhaul.core import planner
+    from longhaul.schema.plan import Plan
+
+    plan = Plan.from_dict({
+        "project": "Neon Drift", "target_days": 1, "profile": "flutter-android",
+        "milestones": [{"id": "m1", "title": "Core", "tasks": [
+            {"id": "t1", "day": 1, "title": "Scaffold",
+             "acceptance_criteria": ["CI runs a real test"]}]}],
+    })
+    f = tmp_path / "plan.yaml"
+    f.write_text(yaml.safe_dump(plan.to_dict()))
+
+    def explode(*a, **k):
+        raise AssertionError("--from must not invoke the model")
+    monkeypatch.setattr(planner, "run", explode)
+
+    assert main(["simulate", "--from", str(f)]) == 0
+    out = capsys.readouterr().out
+    assert "Neon Drift" in out and "CI runs a real test" in out
+    assert "nothing was written" in out
+
+
+def test_simulate_reports_every_problem_in_a_broken_plan(tmp_path, capsys):
+    bad = tmp_path / "plan.yaml"
+    bad.write_text("project: ''\ntarget_days: 0\nmilestones: []\n")
+    assert main(["simulate", "--from", str(bad)]) == 1
+    assert "problems:" in capsys.readouterr().out
+
+
+def test_plan_refuses_to_clobber_an_existing_plan(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".longhaul").mkdir()
+    (tmp_path / ".longhaul" / "plan.yaml").write_text("project: existing\n")
+    (tmp_path / "target.md").write_text("# x\n")
+    assert main(["plan"]) == 1
+    assert "--force" in capsys.readouterr().out

@@ -57,10 +57,17 @@ $ longhaul run
 
 ## Status
 
-**Pre-alpha. Nothing works yet.** This repository currently contains the plan,
-the schemas and the scaffolding — see [`plan.md`](plan.md) for the full design
-and [`ROADMAP.md`](ROADMAP.md) for what lands when. `v0.1` is Planner → Coder →
-DevOps → Git Ops on a manual trigger, PR-only.
+**Pre-alpha.** The Planner works: point it at a target file and it produces a
+validated, dependency-ordered day-by-day plan.
+
+```bash
+longhaul doctor
+longhaul simulate --target target.md --days 14 --profile flutter-android
+```
+
+Nothing yet *executes* that plan — there is no orchestrator, and the Coder,
+DevOps and Git Ops roles are not built. See [`plan.md`](plan.md) for the full
+design and [`ROADMAP.md`](ROADMAP.md) for what lands when.
 
 Watch it, don't depend on it.
 

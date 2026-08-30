@@ -5,9 +5,9 @@ The full reasoning behind this ordering is in [`plan.md`](plan.md).
 
 ## v0.1 — it does one day
 
-`doctor` · `init` · `plan` · `simulate` · `run` · `status` · `report`
+`doctor` ✅ · `plan` ✅ · `simulate` ✅ · `init` · `run` · `status` · `report`
 
-Planner → Coder → DevOps → Git Ops. State, cost ledger, git worktrees, PR-only,
+Planner ✅ → Coder → DevOps → Git Ops. State, cost ledger, git worktrees, PR-only,
 no auto-merge, Telegram notify-only, manual trigger.
 
 The full plan schema and role registry ship **complete** in v0.1 even though half

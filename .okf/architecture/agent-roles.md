@@ -14,14 +14,16 @@ general agent. Each is a markdown prompt in `src/longhaul/roles/`, written in th
 numbered-protocol style ("▶ STEP N", "run autonomously, there is nobody to
 answer").
 
-**None of the twelve is implemented. `src/longhaul/roles/` currently contains only
-an `__init__.py`.** This concept records the design, not the state.
+**One of the twelve is implemented: the Planner.** It reads a target file,
+plans N days against a stack profile, and returns a validated plan — with
+read-only tools, so a planning step can always be safely re-run. The other
+eleven are specifications; this concept records the design, not the state.
 
 # The roles
 
 | Role | Responsibility | Scoped for |
 |---|---|---|
-| Planner | target.md → dependency-ordered day-sized task graph with acceptance criteria | v0.1 |
+| Planner **(built)** | target.md → dependency-ordered day-sized task graph with acceptance criteria | v0.1 |
 | Orchestrator | Picks today's task, dispatches, decides retry vs escalate | v0.1 |
 | Coder | Implements the task in an isolated worktree; writes code *and* tests | v0.1 |
 | DevOps/QA | Build, lint, typecheck, test; reports structured failures | v0.1 |
