@@ -213,28 +213,49 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_kill(args: argparse.Namespace) -> int:
-    """Stop the current run, and leave a record of why."""
-    root = Path.cwd()
-    lock = root / ".longhaul" / "lock"
-    if not lock.is_file():
-        print("no run in progress")
-        return 0
-    pid = lock.read_text().strip()
-    if not pid.isdigit():
-        print(f"{lock} holds no pid")
-        return 1
+    """Stop the run in progress — the whole process group, not just the parent.
+
+    Signalling the orchestrator alone leaves the agent it spawned running,
+    reparented to init, still spending with no ceiling watching it. Verified:
+    SIGTERM to the parent, and the child survives. So the group is the unit.
+    """
     import signal
 
+    from .core import lock
+
+    root = Path.cwd()
+    path = root / lock.LOCK_PATH
+    pid, pgid = lock.read(root)
+
+    if pid is None:
+        print("no run in progress")
+        return 0
+
+    parent_alive = Path(f"/proc/{pid}").exists()
+    group_alive = lock.group_is_alive(pgid)
+
+    if not parent_alive and not group_alive:
+        print(f"pid {pid} is not running and its group is empty — clearing a stale lock")
+        path.unlink(missing_ok=True)
+        return 0
+
+    target = pgid if group_alive else None
     try:
-        os.kill(int(pid), signal.SIGTERM)
+        if target:
+            os.killpg(target, signal.SIGTERM)
+            print(f"sent SIGTERM to process group {target}")
+        else:
+            os.kill(pid, signal.SIGTERM)
+            print(f"sent SIGTERM to {pid}")
     except ProcessLookupError:
-        print(f"pid {pid} is not running — the lock is stale, removing it")
-        lock.unlink(missing_ok=True)
+        print("the run exited before the signal landed")
+        path.unlink(missing_ok=True)
         return 0
     except PermissionError:
-        print(f"not permitted to signal pid {pid}")
+        print(f"not permitted to signal {'group ' + str(target) if target else pid}")
         return 1
-    print(f"sent SIGTERM to {pid}; state on disk is the last completed step")
+
+    print("state on disk is the last completed step; re-run to resume from there")
     return 0
 
 

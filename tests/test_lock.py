@@ -18,8 +18,43 @@ def test_the_lock_is_released_afterwards(tmp_path):
         pass  # no exception
 
 
-def test_the_lock_file_records_the_pid(tmp_path):
+def test_the_lock_file_records_the_pid_and_the_process_group(tmp_path):
+    """Both, because the parent alone is not what needs killing."""
     import os
 
-    with acquire(tmp_path) as path:
-        assert path.read_text().strip() == str(os.getpid())
+    from longhaul.core import lock
+
+    with acquire(tmp_path):
+        pid, pgid = lock.read(tmp_path)
+    assert pid == os.getpid()
+    assert pgid == os.getpgid(0)
+
+
+def test_reading_a_missing_lock_is_not_an_error(tmp_path):
+    from longhaul.core import lock
+
+    assert lock.read(tmp_path) == (None, None)
+
+
+def test_a_lock_from_an_older_version_with_only_a_pid_still_reads(tmp_path):
+    from longhaul.core import lock
+
+    path = tmp_path / ".longhaul" / "lock"
+    path.parent.mkdir(parents=True)
+    path.write_text("12345\n")
+    assert lock.read(tmp_path) == (12345, None)
+
+
+def test_an_empty_process_group_is_reported_as_dead():
+    from longhaul.core import lock
+
+    assert lock.group_is_alive(None) is False
+    assert lock.group_is_alive(999_999) is False
+
+
+def test_our_own_process_group_is_alive():
+    import os
+
+    from longhaul.core import lock
+
+    assert lock.group_is_alive(os.getpgid(0)) is True

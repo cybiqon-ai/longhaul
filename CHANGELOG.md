@@ -12,6 +12,14 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`b4c516c` fix(kill): signal the process group, not just the orchestrator.**
+  Killing the parent alone orphans the agent it spawned — verified directly:
+  SIGTERM to a parent, and its child survives reparented to init. For this tool
+  that means a `claude -p` still running and still spending with no ceiling
+  watching it, which quietly undermines every limit added in the previous commit.
+  The lock now records the pgid alongside the pid, `kill` signals the group, and
+  it refuses to clear the lock while the group still has members.
+
 - **`ed24cee` feat(supervisor,notify): ceilings, loop detection, a lock, and a
   Telegram digest.** The last pieces before this is safe to leave on a cron.
   `.longhaul/config.yml` with conservative defaults (`auto_merge: false`, and no

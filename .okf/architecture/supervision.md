@@ -50,8 +50,22 @@ orchestrators sharing one `state.json` and one set of worktrees corrupt both.
 not.
 
 An overlapping run **exits 0**, not 1: a skipped cron tick is normal operation
-and must not page anyone. `longhaul kill` sends SIGTERM to the holder and clears
-a stale lock left by a process that no longer exists.
+and must not page anyone.
+
+# Killing the group, not the parent
+
+`longhaul kill` signals the **process group**, and the lock records the pgid
+alongside the pid for exactly that reason.
+
+The first implementation signalled the pid only. Verified directly by spawning a
+parent with a child and sending SIGTERM to the parent alone: **the child
+survives**, reparented to init. For this tool that means an orphaned `claude -p`
+still running, still spending, with no ceiling watching it — the ceilings above
+can only account for spend they can see.
+
+`kill` also refuses to clear the lock while the group still has members, even
+when the recorded pid is gone. Clearing it then would invite a second run to
+collide with the orphan.
 
 # Config
 

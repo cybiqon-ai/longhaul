@@ -2,6 +2,20 @@
 
 ## 2026-08-30
 
+* **Update**: `longhaul kill` signalled the recorded pid only, which **orphans
+  the agent**. Verified by spawning a parent with a child and sending SIGTERM to
+  the parent alone: the child survives, reparented to init. For this tool that is
+  a `claude -p` still running and still spending with no ceiling watching it,
+  which quietly undermines every limit in [Supervision](/architecture/supervision.md).
+  The lock now records the process group id as well as the pid, `kill` signals
+  the group, and it refuses to clear the lock while the group still has members —
+  clearing it then would invite a second run to collide with the orphan.
+
+  Worth recording how it surfaced: a check of mine printed "still running" when
+  nothing was, because the `pgrep` pattern matched its own shell wrapper. The
+  conclusion was right for the wrong reason, so the concern was proven properly
+  with a direct experiment before anything was changed.
+
 * **Creation**: [Supervision](/architecture/supervision.md) and
   [Notifications](/architecture/notifications.md) — the last two roles v0.1 and
   v0.2 needed before this is safe to leave on a cron. Ceilings (project, daily,

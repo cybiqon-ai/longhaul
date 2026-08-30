@@ -187,3 +187,48 @@ def test_config_template_matches_the_defaults():
     assert template["limits"]["max_attempts"] == defaults.limits.max_attempts
     assert template["limits"]["identical_failures"] == defaults.limits.identical_failures
     assert template["notify"]["backend"] == defaults.notify.backend
+
+
+def test_kill_signals_the_whole_group_not_just_the_parent(tmp_path, monkeypatch, capsys):
+    """An agent subprocess outlives a SIGTERM'd orchestrator and keeps spending.
+
+    Verified directly: spawn a parent with a child, SIGTERM the parent only, and
+    the child survives reparented to init. So the group is the unit of work.
+    """
+    import os
+
+    from longhaul.core import lock
+
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / ".longhaul" / "lock"
+    path.parent.mkdir(parents=True)
+    path.write_text("4242\n777\n")
+
+    monkeypatch.setattr(lock, "group_is_alive", lambda pgid: pgid == 777)
+    signalled = {}
+    monkeypatch.setattr(os, "killpg", lambda pgid, sig: signalled.update(pgid=pgid, sig=sig))
+    monkeypatch.setattr(
+        os, "kill", lambda *a: pytest.fail("must signal the group, not the pid"))
+
+    assert main(["kill"]) == 0
+    assert signalled["pgid"] == 777
+    assert "process group 777" in capsys.readouterr().out
+
+
+def test_kill_only_clears_the_lock_when_the_group_is_empty_too(tmp_path, monkeypatch, capsys):
+    """Clearing a lock while an orphan is still working invites a second run
+    to collide with it."""
+    import os
+
+    from longhaul.core import lock
+
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / ".longhaul" / "lock"
+    path.parent.mkdir(parents=True)
+    path.write_text("999999\n888\n")  # pid cannot exist, group still alive
+
+    monkeypatch.setattr(lock, "group_is_alive", lambda pgid: True)
+    monkeypatch.setattr(os, "killpg", lambda pgid, sig: None)
+
+    assert main(["kill"]) == 0
+    assert path.exists(), "the lock must survive while the group is still alive"
