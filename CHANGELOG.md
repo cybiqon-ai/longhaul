@@ -12,6 +12,22 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`8692054` fix(web): the interface rendered completely unstyled.** Every
+  utility was written as `bg-[--color-panel]` — Tailwind 3 arbitrary-value
+  syntax. **Tailwind 4 does not error on it; it silently generates nothing.** So
+  the build succeeded, a 19 KB stylesheet was emitted and linked, and the page
+  referenced classes the stylesheet did not define. Nothing anywhere reported a
+  problem.
+  The colours were already declared in `@theme`, which makes Tailwind 4 generate
+  `bg-panel`, `text-ink`, `border-line` and the rest — so the fix was to use the
+  utilities that were there all along, across 16 files.
+  `tests/test_static_export.py` now checks the **built** export rather than the
+  source, because the source looked correct throughout: every theme colour class
+  the HTML uses must exist in the CSS, and no v3 syntax may survive a build. Both
+  checks were verified by reintroducing each failure and confirming the suite
+  goes red — the first attempt at that verification silently patched nothing and
+  proved nothing, which is the same shape of bug again.
+
 - **`17faa21` fix(web): make the export reproducible, so the staleness check
   means something.** CI's "is the committed export stale?" check failed on a
   clean rebuild. Next generates a **random build id per build** and bakes it into

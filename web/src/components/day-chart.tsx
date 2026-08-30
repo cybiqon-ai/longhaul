@@ -54,7 +54,7 @@ export function DayChart({
         </ResponsiveContainer>
       </div>
       {empty && (
-        <p className="pb-1 text-center text-xs text-[--color-muted]">
+        <p className="pb-1 text-center text-xs text-muted">
           Nothing recorded yet — this fills in as days run.
         </p>
       )}

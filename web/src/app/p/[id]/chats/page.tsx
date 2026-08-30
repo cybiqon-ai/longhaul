@@ -13,7 +13,7 @@ import { Card, Empty, Tag } from "@/components/ui";
 function ToolBlock({ tool }: { tool: Transcript["messages"][0]["tools"][0] }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mt-1.5 rounded border border-[--color-line] bg-[--color-surface]">
+    <div className="mt-1.5 rounded border border-line bg-surface">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -24,13 +24,13 @@ function ToolBlock({ tool }: { tool: Transcript["messages"][0]["tools"][0] }) {
         <span className="font-mono">
           {tool.kind === "call" ? tool.name || "tool" : "result"}
         </span>
-        {tool.error && <span className="text-[--color-failed]">failed</span>}
-        <span className="ml-auto text-[--color-muted]">
+        {tool.error && <span className="text-failed">failed</span>}
+        <span className="ml-auto text-muted">
           {tool.input.split("\n").length} lines
         </span>
       </button>
       {open && (
-        <pre className="overflow-x-auto whitespace-pre-wrap border-t border-[--color-line] px-2.5 py-2 font-mono text-[11px] leading-relaxed">
+        <pre className="overflow-x-auto whitespace-pre-wrap border-t border-line px-2.5 py-2 font-mono text-[11px] leading-relaxed">
           {tool.input}
         </pre>
       )}
@@ -45,7 +45,7 @@ function Conversation({ transcript }: { transcript: Transcript }) {
         <span className="tabular-nums">{money(transcript.cost_usd)}</span>
         <span className="tabular-nums">{duration(transcript.duration_ms / 1000)}</span>
         <span className="tabular-nums">{transcript.num_turns} turns</span>
-        <span className="font-mono text-xs text-[--color-muted]">
+        <span className="font-mono text-xs text-muted">
           {transcript.session_id?.slice(0, 8) ?? "—"}
         </span>
         {transcript.tools_used.length > 0 && (
@@ -54,7 +54,7 @@ function Conversation({ transcript }: { transcript: Transcript }) {
           </span>
         )}
         {transcript.retries.length > 0 && (
-          <span className="flex items-center gap-1 text-xs text-[--color-parked]">
+          <span className="flex items-center gap-1 text-xs text-parked">
             <AlertTriangle className="size-3" />
             recovered from {transcript.retries.length} API retry(s): {transcript.retries.join(", ")}
           </span>
@@ -63,7 +63,7 @@ function Conversation({ transcript }: { transcript: Transcript }) {
 
       {transcript.messages.map((message, i) => (
         <Card key={i} className="px-3.5 py-3">
-          <div className="mb-1.5 flex items-center gap-1.5 text-xs text-[--color-muted]">
+          <div className="mb-1.5 flex items-center gap-1.5 text-xs text-muted">
             {message.role === "assistant"
               ? <Bot className="size-3.5" />
               : <User className="size-3.5" />}
@@ -109,24 +109,24 @@ function Chats({ data }: { data: ProjectData }) {
 
   return (
     <div className="mt-4 grid gap-4 lg:grid-cols-[16rem_1fr]">
-      <Card className="h-fit divide-y divide-[--color-line-2]">
+      <Card className="h-fit divide-y divide-line-2">
         {refs.map((ref) => (
           <button
             key={ref.id}
             type="button"
             onClick={() => setSelected(ref)}
             className={cx(
-              "block w-full px-3 py-2 text-left text-sm hover:bg-[--color-panel-2]",
-              selected?.id === ref.id && "bg-[--color-accent-soft]"
+              "block w-full px-3 py-2 text-left text-sm hover:bg-panel-2",
+              selected?.id === ref.id && "bg-accent-soft"
             )}
           >
             <span className="flex items-center gap-2">
               <Tag>{ref.role}</Tag>
-              <span className="font-mono text-xs text-[--color-muted]">
+              <span className="font-mono text-xs text-muted">
                 day {ref.day} · {ref.task}
               </span>
             </span>
-            <span className="mt-0.5 block text-xs text-[--color-muted]">
+            <span className="mt-0.5 block text-xs text-muted">
               attempt {ref.attempt} · {bytes(ref.size)}
             </span>
           </button>
@@ -147,7 +147,7 @@ export default function ChatsPage() {
     <ProjectPage title="Chats">
       {(data) => (
         <>
-          <p className="mt-0.5 text-sm text-[--color-muted]">
+          <p className="mt-0.5 text-sm text-muted">
             What each agent actually said and did. Stored verbatim, so a ledger row
             saying $1.99 can be opened and read.
           </p>

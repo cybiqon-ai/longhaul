@@ -12,7 +12,7 @@ import { Chip, StatusBadge, Tag } from "@/components/ui";
 function Detail({ task }: { task: Task }) {
   const rows: [string, React.ReactNode][] = [
     ["Acceptance criteria", (
-      <ul className="list-disc pl-4 text-[--color-ink-2]">
+      <ul className="list-disc pl-4 text-ink-2">
         {task.criteria.map((c, i) => <li key={i}>{c}</li>)}
       </ul>
     )],
@@ -37,18 +37,18 @@ function Detail({ task }: { task: Task }) {
       <dl className="grid grid-cols-[9rem_1fr] gap-x-4 gap-y-1.5">
         {rows.map(([label, value], i) => (
           <div key={i} className="contents">
-            <dt className="text-xs text-[--color-muted]">{label}</dt>
+            <dt className="text-xs text-muted">{label}</dt>
             <dd>{value}</dd>
           </div>
         ))}
       </dl>
       {task.findings.length > 0 && (
-        <pre className="overflow-x-auto whitespace-pre-wrap rounded border border-[--color-line] bg-[--color-surface] p-2.5 font-mono text-xs">
+        <pre className="overflow-x-auto whitespace-pre-wrap rounded border border-line bg-surface p-2.5 font-mono text-xs">
           {task.findings.join("\n")}
         </pre>
       )}
       {task.last_error && (
-        <pre className="overflow-x-auto whitespace-pre-wrap rounded border border-[--color-line] bg-[--color-surface] p-2.5 font-mono text-xs">
+        <pre className="overflow-x-auto whitespace-pre-wrap rounded border border-line bg-surface p-2.5 font-mono text-xs">
           {task.last_error}
         </pre>
       )}
@@ -58,7 +58,7 @@ function Detail({ task }: { task: Task }) {
 
 const columns: ColumnDef<Task, unknown>[] = [
   { accessorKey: "day", header: "Day",
-    cell: (c) => <span className="font-mono text-xs text-[--color-muted]">{c.getValue<number>()}</span> },
+    cell: (c) => <span className="font-mono text-xs text-muted">{c.getValue<number>()}</span> },
   { accessorKey: "id", header: "ID",
     cell: (c) => <span className="font-mono text-xs">{c.getValue<string>()}</span> },
   { accessorKey: "status", header: "Status",
@@ -77,7 +77,7 @@ const columns: ColumnDef<Task, unknown>[] = [
   { accessorKey: "title", header: "Task",
     cell: (c) => <span className="font-medium">{c.getValue<string>()}</span> },
   { accessorKey: "attempts", header: "Try",
-    cell: (c) => <span className="font-mono text-xs text-[--color-muted]">{c.getValue<number>() || "—"}</span> },
+    cell: (c) => <span className="font-mono text-xs text-muted">{c.getValue<number>() || "—"}</span> },
   { accessorKey: "cost_usd", header: "Cost",
     cell: (c) => {
       const n = c.getValue<number>();
@@ -105,13 +105,13 @@ function TaskList({ tasks, total }: { tasks: Task[]; total: number }) {
 
   return (
     <>
-      <p className="mt-0.5 text-sm text-[--color-muted]">{rows.length} of {total} shown</p>
+      <p className="mt-0.5 text-sm text-muted">{rows.length} of {total} shown</p>
       <div className="mb-3 mt-3 flex flex-wrap items-center gap-2">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search tasks — title, id, kind, error"
-          className="min-w-[12rem] flex-1 rounded-lg border border-[--color-line] bg-[--color-panel] px-2.5 py-1.5 text-sm outline-none placeholder:text-[--color-muted] focus:border-[--color-accent]"
+          className="min-w-[12rem] flex-1 rounded-lg border border-line bg-panel px-2.5 py-1.5 text-sm outline-none placeholder:text-muted focus:border-accent"
         />
         <Chip active={!status} onClick={() => setStatus(null)} count={total}>All</Chip>
         {STATUS_ORDER.filter((s) => counts[s]).map((s) => (

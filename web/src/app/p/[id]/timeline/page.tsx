@@ -16,7 +16,7 @@ export default function Timeline() {
 
         return (
           <>
-            <p className="mt-0.5 text-sm text-[--color-muted]">
+            <p className="mt-0.5 text-sm text-muted">
               Every day from 1 to {data.target_days}, so slack shows as slack rather
               than being closed up.
             </p>
@@ -24,16 +24,16 @@ export default function Timeline() {
               <DayChart series={data.series} metric="runs" />
             </div>
 
-            <Card className="mt-3 divide-y divide-[--color-line-2]">
+            <Card className="mt-3 divide-y divide-line-2">
               {data.series.map((day) => {
                 const tasks = byDay.get(day.day) ?? [];
                 return (
                   <div key={day.day} className="flex gap-4 px-3.5 py-2.5">
-                    <span className="w-16 shrink-0 pt-0.5 font-mono text-xs text-[--color-muted]">
+                    <span className="w-16 shrink-0 pt-0.5 font-mono text-xs text-muted">
                       day {day.day}
                     </span>
                     {tasks.length === 0 ? (
-                      <span className="text-sm italic text-[--color-muted]">
+                      <span className="text-sm italic text-muted">
                         slack — no task planned
                       </span>
                     ) : (
@@ -45,11 +45,11 @@ export default function Timeline() {
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="block font-medium">{task.title}</span>
-                              <span className="text-xs text-[--color-muted]">
+                              <span className="text-xs text-muted">
                                 {task.milestone}
                               </span>
                             </span>
-                            <span className="font-mono text-xs tabular-nums text-[--color-muted]">
+                            <span className="font-mono text-xs tabular-nums text-muted">
                               {task.cost_usd ? money(task.cost_usd) : "—"}
                             </span>
                           </div>

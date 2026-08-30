@@ -39,14 +39,14 @@ export function DataTable<T extends object>({
 
   if (!rows.length) {
     return (
-      <div className="rounded-lg border border-[--color-line] bg-[--color-panel] px-4 py-10 text-center text-sm text-[--color-muted]">
+      <div className="rounded-lg border border-line bg-panel px-4 py-10 text-center text-sm text-muted">
         {empty ?? "Nothing to show."}
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-[--color-line] bg-[--color-panel]">
+    <div className="overflow-x-auto rounded-lg border border-line bg-panel">
       <table className="w-full border-collapse">
         <thead>
           {table.getHeaderGroups().map((group) => (
@@ -59,8 +59,8 @@ export function DataTable<T extends object>({
                     key={header.id}
                     onClick={sortable ? header.column.getToggleSortingHandler() : undefined}
                     className={cx(
-                      "sticky top-0 z-[1] whitespace-nowrap border-b border-[--color-line-2] bg-[--color-panel-2] px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.07em] text-[--color-muted]",
-                      sortable && "cursor-pointer select-none hover:text-[--color-ink]"
+                      "sticky top-0 z-[1] whitespace-nowrap border-b border-line-2 bg-panel-2 px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.07em] text-muted",
+                      sortable && "cursor-pointer select-none hover:text-ink"
                     )}
                   >
                     <span className="inline-flex items-center gap-1">
@@ -83,7 +83,7 @@ export function DataTable<T extends object>({
                 <tr
                   onClick={expand ? () => setOpen((o) => ({ ...o, [key]: !isOpen })) : undefined}
                   className={cx(
-                    "border-b border-[--color-line-2] last:border-0 hover:bg-[--color-panel-2]",
+                    "border-b border-line-2 last:border-0 hover:bg-panel-2",
                     expand && "cursor-pointer"
                   )}
                 >
@@ -94,7 +94,7 @@ export function DataTable<T extends object>({
                   ))}
                 </tr>
                 {expand && isOpen && (
-                  <tr className="border-b border-[--color-line-2] bg-[--color-panel-2]">
+                  <tr className="border-b border-line-2 bg-panel-2">
                     <td colSpan={row.getVisibleCells().length} className="px-4 py-3">
                       {expand(row.original)}
                     </td>

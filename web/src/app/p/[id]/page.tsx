@@ -13,9 +13,9 @@ function AttentionRow({ task, id }: { task: Task; id: string }) {
   return (
     <Link
       href={`/p/${id}/tasks?task=${task.id}`}
-      className="flex gap-3 border-b border-[--color-line-2] px-3.5 py-2.5 last:border-0 hover:bg-[--color-panel-2] hover:no-underline"
+      className="flex gap-3 border-b border-line-2 px-3.5 py-2.5 last:border-0 hover:bg-panel-2 hover:no-underline"
     >
-      <span className="w-14 shrink-0 pt-0.5 font-mono text-xs text-[--color-muted]">
+      <span className="w-14 shrink-0 pt-0.5 font-mono text-xs text-muted">
         day {task.day}
       </span>
       <span className="w-24 shrink-0 pt-0.5">
@@ -24,7 +24,7 @@ function AttentionRow({ task, id }: { task: Task; id: string }) {
       <span className="min-w-0">
         <span className="block truncate font-medium">{task.title}</span>
         {task.last_error && (
-          <span className="mt-0.5 block truncate text-xs text-[--color-muted]">
+          <span className="mt-0.5 block truncate text-xs text-muted">
             {task.last_error.split("\n")[0]}
           </span>
         )}
@@ -43,7 +43,7 @@ export default function Overview() {
         const attention = data.tasks.filter((t) => ATTENTION.includes(t.status));
         return (
           <>
-            <p className="mt-0.5 text-sm text-[--color-muted]">
+            <p className="mt-0.5 text-sm text-muted">
               {data.tasks_total} tasks over {data.target_days} days ·{" "}
               <code className="font-mono">{data.profile}</code>
             </p>
@@ -76,15 +76,15 @@ export default function Overview() {
             {data.risk_flags.length > 0 && (
               <>
                 <SectionTitle>Risk flags</SectionTitle>
-                <Card className="divide-y divide-[--color-line-2]">
+                <Card className="divide-y divide-line-2">
                   {data.risk_flags.slice(0, 3).map((flag, i) => (
-                    <p key={i} className="px-3.5 py-2.5 text-sm text-[--color-ink-2]">
+                    <p key={i} className="px-3.5 py-2.5 text-sm text-ink-2">
                       {flag}
                     </p>
                   ))}
                 </Card>
                 {data.risk_flags.length > 3 && (
-                  <p className="mt-2 text-xs text-[--color-muted]">
+                  <p className="mt-2 text-xs text-muted">
                     <Link href={`/p/${id}/risks`}>
                       {data.risk_flags.length - 3} more on the Risks page
                     </Link>

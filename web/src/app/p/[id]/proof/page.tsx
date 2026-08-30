@@ -12,7 +12,7 @@ export default function Proof() {
         const others = data.proof.filter((a) => !a.is_image);
         return (
           <>
-            <p className="mt-0.5 text-sm text-[--color-muted]">
+            <p className="mt-0.5 text-sm text-muted">
               What each day actually produced. Tests passing is not evidence an
               application works.
             </p>
@@ -34,7 +34,7 @@ export default function Proof() {
                   {shots.map((shot) => (
                     <figure
                       key={shot.href}
-                      className="overflow-hidden rounded-lg border border-[--color-line] bg-[--color-panel]"
+                      className="overflow-hidden rounded-lg border border-line bg-panel"
                     >
                       <a href={`/${shot.href}`}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -42,10 +42,10 @@ export default function Proof() {
                           src={`/${shot.href}`}
                           alt={`day ${shot.day} — ${shot.task}`}
                           loading="lazy"
-                          className="block w-full bg-[--color-surface]"
+                          className="block w-full bg-surface"
                         />
                       </a>
-                      <figcaption className="flex justify-between border-t border-[--color-line] px-2.5 py-1.5 text-xs text-[--color-muted]">
+                      <figcaption className="flex justify-between border-t border-line px-2.5 py-1.5 text-xs text-muted">
                         <span>day {shot.day} · {shot.task}</span>
                         <span>{bytes(shot.size)}</span>
                       </figcaption>
@@ -58,14 +58,14 @@ export default function Proof() {
             {others.length > 0 && (
               <>
                 <SectionTitle>Other artefacts</SectionTitle>
-                <Card className="divide-y divide-[--color-line-2]">
+                <Card className="divide-y divide-line-2">
                   {others.map((item) => (
                     <a
                       key={item.href}
                       href={`/${item.href}`}
-                      className="flex items-center gap-3 px-3.5 py-2 text-sm hover:bg-[--color-panel-2] hover:no-underline"
+                      className="flex items-center gap-3 px-3.5 py-2 text-sm hover:bg-panel-2 hover:no-underline"
                     >
-                      <span className="font-mono text-xs text-[--color-muted]">
+                      <span className="font-mono text-xs text-muted">
                         day {item.day}
                       </span>
                       <span>{item.name}</span>

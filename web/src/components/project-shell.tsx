@@ -54,13 +54,13 @@ export function ProjectPage({
           cost={data?.total_cost_usd}
           crumbs={
             <>
-              <Link href="/" className="text-sm text-[--color-muted] hover:text-[--color-ink]">
+              <Link href="/" className="text-sm text-muted hover:text-ink">
                 Projects
               </Link>
-              <span className="text-[--color-muted]">/</span>
+              <span className="text-muted">/</span>
               <b className="truncate text-[15px]">{data?.project ?? id}</b>
               {data && (
-                <span className="ml-1 rounded-full border border-[--color-line] px-2 py-0.5 font-mono text-xs text-[--color-ink-2]">
+                <span className="ml-1 rounded-full border border-line px-2 py-0.5 font-mono text-xs text-ink-2">
                   day {data.days_done}/{data.target_days}
                 </span>
               )}

@@ -11,14 +11,14 @@ import { Chip, StatusBadge, Tag } from "@/components/ui";
 
 const columns: ColumnDef<Run, unknown>[] = [
   { accessorKey: "at", header: "Time",
-    cell: (c) => <span className="whitespace-nowrap font-mono text-xs text-[--color-muted]">{when(c.getValue<string>())}</span> },
+    cell: (c) => <span className="whitespace-nowrap font-mono text-xs text-muted">{when(c.getValue<string>())}</span> },
   { accessorKey: "role", header: "Role", cell: (c) => <Tag>{c.getValue<string>()}</Tag> },
   { accessorKey: "task", header: "Task",
     cell: (c) => <span className="font-mono text-xs">{c.getValue<string>()}</span> },
   { accessorKey: "title", header: "Working on",
     cell: (c) => <span className="text-sm">{c.getValue<string>()}</span> },
   { accessorKey: "attempt", header: "Try",
-    cell: (c) => <span className="font-mono text-xs text-[--color-muted]">{c.getValue<number>()}</span> },
+    cell: (c) => <span className="font-mono text-xs text-muted">{c.getValue<number>()}</span> },
   { accessorKey: "duration_s", header: "Duration",
     cell: (c) => <span className="font-mono text-xs tabular-nums">{duration(c.getValue<number>())}</span> },
   { accessorKey: "cost_usd", header: "Cost",
@@ -28,7 +28,7 @@ const columns: ColumnDef<Run, unknown>[] = [
   { accessorKey: "session_id", header: "Session",
     cell: (c) => {
       const id = c.getValue<string | null>();
-      return <span className="font-mono text-xs text-[--color-muted]">{id ? id.slice(0, 8) : "—"}</span>;
+      return <span className="font-mono text-xs text-muted">{id ? id.slice(0, 8) : "—"}</span>;
     } },
 ];
 
@@ -51,7 +51,7 @@ function RunList({ runs }: { runs: Run[] }) {
 
   return (
     <>
-      <p className="mt-0.5 text-sm text-[--color-muted]">
+      <p className="mt-0.5 text-sm text-muted">
         Every invocation, from <code className="font-mono">.longhaul/ledger.jsonl</code>.
         Append-only, so the bill is auditable after the fact.
       </p>
@@ -60,7 +60,7 @@ function RunList({ runs }: { runs: Run[] }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search runs — task, role, session"
-          className="min-w-[12rem] flex-1 rounded-lg border border-[--color-line] bg-[--color-panel] px-2.5 py-1.5 text-sm outline-none placeholder:text-[--color-muted] focus:border-[--color-accent]"
+          className="min-w-[12rem] flex-1 rounded-lg border border-line bg-panel px-2.5 py-1.5 text-sm outline-none placeholder:text-muted focus:border-accent"
         />
         <Chip active={!role} onClick={() => setRole(null)} count={runs.length}>All roles</Chip>
         {Object.keys(roles).sort().map((r) => (

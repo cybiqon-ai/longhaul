@@ -39,14 +39,14 @@ export function projectNav(id: string, counts: {
 export function Sidebar({ groups, footer }: { groups: NavGroup[]; footer?: ReactNode }) {
   const pathname = usePathname();
   return (
-    <nav className="sticky top-0 hidden h-screen flex-col border-r border-[--color-line] bg-[--color-panel] md:flex">
+    <nav className="sticky top-0 hidden h-screen flex-col border-r border-line bg-panel md:flex">
       <Link href="/" className="flex items-baseline gap-2 px-4 pb-3 pt-4 hover:no-underline">
         <b className="text-base tracking-tight">Longhaul</b>
       </Link>
 
       {groups.map((group) => (
         <div key={group.group} className="pb-1 pt-2">
-          <h3 className="mb-1 px-4 text-[11px] font-semibold uppercase tracking-[0.09em] text-[--color-muted]">
+          <h3 className="mb-1 px-4 text-[11px] font-semibold uppercase tracking-[0.09em] text-muted">
             {group.group}
           </h3>
           {group.items.map((item) => {
@@ -61,14 +61,14 @@ export function Sidebar({ groups, footer }: { groups: NavGroup[]; footer?: React
                 className={cx(
                   "flex items-center gap-2.5 border-l-2 px-4 py-1.5 text-sm hover:no-underline",
                   active
-                    ? "border-[--color-accent] bg-[--color-accent-soft] font-semibold text-[--color-ink]"
-                    : "border-transparent text-[--color-ink-2] hover:bg-[--color-panel-2] hover:text-[--color-ink]"
+                    ? "border-accent bg-accent-soft font-semibold text-ink"
+                    : "border-transparent text-ink-2 hover:bg-panel-2 hover:text-ink"
                 )}
               >
                 <item.icon className="size-4 shrink-0 opacity-80" />
                 <span className="truncate">{item.label}</span>
                 {item.count != null && item.count > 0 && (
-                  <span className="ml-auto font-mono text-[11px] text-[--color-muted]">
+                  <span className="ml-auto font-mono text-[11px] text-muted">
                     {item.count}
                   </span>
                 )}
@@ -79,7 +79,7 @@ export function Sidebar({ groups, footer }: { groups: NavGroup[]; footer?: React
       ))}
 
       {footer && (
-        <div className="mt-auto border-t border-[--color-line] px-4 py-3 text-xs text-[--color-muted]">
+        <div className="mt-auto border-t border-line px-4 py-3 text-xs text-muted">
           {footer}
         </div>
       )}
@@ -91,21 +91,21 @@ export function TopBar({
   crumbs, cost, live, extra,
 }: { crumbs: ReactNode; cost?: number; live?: boolean; extra?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-[--color-line] bg-[--color-panel] px-5 py-2.5">
+    <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-panel px-5 py-2.5">
       <div className="flex min-w-0 items-center gap-2">{crumbs}</div>
       <div className="ml-auto flex items-center gap-2">
         {extra}
         {cost != null && (
-          <span className="rounded-full border border-[--color-line] px-2.5 py-0.5 font-mono text-xs text-[--color-ink-2]">
+          <span className="rounded-full border border-line px-2.5 py-0.5 font-mono text-xs text-ink-2">
             {money(cost)}
           </span>
         )}
         {live != null && (
-          <span className="flex items-center gap-1.5 rounded-full border border-[--color-line] px-2.5 py-0.5 text-xs text-[--color-ink-2]">
+          <span className="flex items-center gap-1.5 rounded-full border border-line px-2.5 py-0.5 text-xs text-ink-2">
             <span
               className={cx(
                 "size-2 rounded-full",
-                live ? "bg-[--color-done] ring-2 ring-[--color-done]/25" : "bg-[--color-pending]"
+                live ? "bg-done ring-2 ring-done/25" : "bg-pending"
               )}
             />
             {live ? "live" : "offline"}

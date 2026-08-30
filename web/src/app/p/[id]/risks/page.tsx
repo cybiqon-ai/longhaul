@@ -10,17 +10,17 @@ export default function Risks() {
     <ProjectPage title="Risks">
       {(data) => (
         <>
-          <p className="mt-0.5 text-sm text-[--color-muted]">
+          <p className="mt-0.5 text-sm text-muted">
             Written by the Planner up front, not discovered later.
           </p>
           <div className="mt-4">
             {data.risk_flags.length === 0 ? (
               <Empty>The plan declared no risk flags.</Empty>
             ) : (
-              <Card className="divide-y divide-[--color-line-2]">
+              <Card className="divide-y divide-line-2">
                 {data.risk_flags.map((flag, i) => (
-                  <p key={i} className="flex gap-3 px-3.5 py-3 text-sm text-[--color-ink-2]">
-                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-[--color-parked]" />
+                  <p key={i} className="flex gap-3 px-3.5 py-3 text-sm text-ink-2">
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-parked" />
                     <span>{flag}</span>
                   </p>
                 ))}

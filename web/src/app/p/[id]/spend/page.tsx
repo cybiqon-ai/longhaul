@@ -25,7 +25,7 @@ export default function Spend() {
 
         return (
           <>
-            <p className="mt-0.5 text-sm text-[--color-muted]">
+            <p className="mt-0.5 text-sm text-muted">
               {money(data.total_cost_usd)} across {data.runs.length} agent runs.
               Every figure comes from the CLI&apos;s own reported cost, not an estimate.
             </p>
@@ -47,7 +47,7 @@ export default function Spend() {
             {roles.length === 0 ? (
               <Empty>Nothing spent yet.</Empty>
             ) : (
-              <Card className="divide-y divide-[--color-line-2]">
+              <Card className="divide-y divide-line-2">
                 {roles.map(([role, v]) => (
                   <div key={role} className="flex items-center gap-4 px-3.5 py-2.5 text-sm">
                     <span className="w-28 shrink-0"><Tag>{role}</Tag></span>
@@ -55,11 +55,11 @@ export default function Spend() {
                       {v.runs} runs
                     </span>
                     <span className="w-24 shrink-0 font-mono tabular-nums">{money(v.cost)}</span>
-                    <span className="font-mono text-xs tabular-nums text-[--color-muted]">
+                    <span className="font-mono text-xs tabular-nums text-muted">
                       {duration(v.secs)}
                     </span>
                     <span
-                      className="ml-auto h-1.5 rounded-full bg-[--color-accent]"
+                      className="ml-auto h-1.5 rounded-full bg-accent"
                       style={{ width: `${(v.cost / (roles[0][1].cost || 1)) * 30}%` }}
                     />
                   </div>

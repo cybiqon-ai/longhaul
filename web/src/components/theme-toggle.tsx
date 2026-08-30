@@ -23,7 +23,7 @@ export function ThemeToggle() {
           // this session; it simply will not be remembered.
         }
       }}
-      className="rounded-full border border-[--color-line] p-1.5 text-[--color-ink-2] hover:text-[--color-ink]"
+      className="rounded-full border border-line p-1.5 text-ink-2 hover:text-ink"
     >
       {dark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
     </button>

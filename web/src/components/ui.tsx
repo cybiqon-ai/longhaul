@@ -15,7 +15,7 @@ import { STATUS_COLOR, STATUS_LABEL, cx } from "@/lib/format";
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cx("rounded-lg border border-[--color-line] bg-[--color-panel]", className)}>
+    <div className={cx("rounded-lg border border-line bg-panel", className)}>
       {children}
     </div>
   );
@@ -32,7 +32,7 @@ export function Tile({
       >
         {value}
       </div>
-      <div className="text-xs text-[--color-muted]">{label}</div>
+      <div className="text-xs text-muted">{label}</div>
     </Card>
   );
 }
@@ -44,7 +44,7 @@ export function StatusDot({ status }: { status: Status }) {
       className={cx(
         "inline-block size-2 shrink-0 rounded-full",
         status === "in_progress" && "motion-safe:animate-pulse",
-        status === "pending" && "border border-[--color-pending]"
+        status === "pending" && "border border-pending"
       )}
       style={status === "pending" ? undefined : { background: STATUS_COLOR[status] }}
     />
@@ -67,9 +67,9 @@ export function Tag({
     <span
       className={cx(
         "inline-block rounded border px-1.5 py-px font-mono text-[11px]",
-        tone === "warn" && "border-[--color-parked]/50 text-[--color-parked]",
-        tone === "risk" && "border-[--color-failed]/50 text-[--color-failed]",
-        !tone && "border-[--color-line] text-[--color-muted]"
+        tone === "warn" && "border-parked/50 text-parked",
+        tone === "risk" && "border-failed/50 text-failed",
+        !tone && "border-line text-muted"
       )}
     >
       {children}
@@ -88,8 +88,8 @@ export function Chip({
       className={cx(
         "rounded-full border px-2.5 py-1 text-sm transition-colors",
         active
-          ? "border-[--color-accent] bg-[--color-accent] font-semibold text-[--color-panel]"
-          : "border-[--color-line] bg-[--color-panel] text-[--color-ink-2] hover:text-[--color-ink]"
+          ? "border-accent bg-accent font-semibold text-panel"
+          : "border-line bg-panel text-ink-2 hover:text-ink"
       )}
     >
       {children}
@@ -101,14 +101,14 @@ export function Chip({
 export function Empty({ children }: { children: ReactNode }) {
   return (
     <Card>
-      <p className="px-4 py-10 text-center text-sm text-[--color-muted]">{children}</p>
+      <p className="px-4 py-10 text-center text-sm text-muted">{children}</p>
     </Card>
   );
 }
 
 export function SectionTitle({ children }: { children: ReactNode }) {
   return (
-    <h2 className="mt-7 mb-2 text-xs font-semibold uppercase tracking-[0.09em] text-[--color-muted]">
+    <h2 className="mt-7 mb-2 text-xs font-semibold uppercase tracking-[0.09em] text-muted">
       {children}
     </h2>
   );
@@ -116,7 +116,7 @@ export function SectionTitle({ children }: { children: ReactNode }) {
 
 export function Note({ children }: { children: ReactNode }) {
   return (
-    <p className="my-2 border-l-2 border-[--color-parked] bg-[--color-panel] px-3 py-2 text-sm text-[--color-ink-2]">
+    <p className="my-2 border-l-2 border-parked bg-panel px-3 py-2 text-sm text-ink-2">
       {children}
     </p>
   );
