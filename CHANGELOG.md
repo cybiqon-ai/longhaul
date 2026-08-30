@@ -12,6 +12,26 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`4ad3a0c` feat(proof): does it actually run?** Tests passing is not evidence
+  an application works — a Flutter app can compile, lint clean and pass every
+  test while showing a grey screen. Each task declares what proof means, the
+  profile says how to produce it, and the artefact lands in
+  `.longhaul/proof/day-NN/` where a human can look. The Inspector then judges the
+  artefact against the day's criteria and the design system, with read-only tools
+  so it cannot alter what it is judging.
+  **A proof step that could not run is not a pass**, and is reported separately
+  from one that ran and failed. Steps that exit 0 and leave no artefact are also
+  not a pass.
+  *Found by wiring it in:* the flutter profile started with `adb
+  wait-for-device`, which blocks forever with nothing attached — it hung the
+  entire test suite. Replaced with `adb get-state`, every profile's proof is now
+  time-bounded, and a test asserts no shipped profile uses a blocking primitive.
+  *Then found by running it for real:* with `adb` installed but no device, the
+  result read **FAILED**, which would burn a retry budget on every developer
+  machine without an emulator. Profiles now separate `requires:` from `steps:` —
+  a failed precondition means this machine cannot demonstrate anything, which is
+  a different fact from the change being broken.
+
 - **`3a126dd` feat(designer): a design system, and `needs_human` that actually
   does the work.** The Designer role produces one tokens document — palette roles
   with contrast ratios, type scale, spacing scale, motion, tone — plus the

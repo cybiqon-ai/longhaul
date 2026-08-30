@@ -66,6 +66,21 @@ def patch_devops(monkeypatch, report):
     monkeypatch.setattr(orchestrator.devops, "run", lambda *a, **k: report)
 
 
+@pytest.fixture(autouse=True)
+def no_real_proof(monkeypatch):
+    """The suite must run offline in seconds.
+
+    Proof steps shell out to a real toolchain, and the flutter-android profile
+    starts with `adb wait-for-device` — which blocks forever with nothing
+    attached. Without this the whole suite hangs, which is exactly what happened
+    the first time the proof gate was wired in.
+    """
+    monkeypatch.setattr(
+        orchestrator.proof_gate, "run",
+        lambda *a, **k: orchestrator.proof_gate.ProofResult(),
+    )
+
+
 def patch_coder_writes(monkeypatch, text="print('x')\n", path="new_file.py"):
     """Make the fake Coder actually change the worktree, as a real one would."""
     real = orchestrator.worktree.create

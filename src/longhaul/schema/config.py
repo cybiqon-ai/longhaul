@@ -49,6 +49,9 @@ class Config:
     #: The single biggest trust decision in the project. There is no supported
     #: way to turn this on yet, and it will need an explicit per-repo opt-in.
     auto_merge: bool = False
+    #: Show the proof artefact to a model and have it judge against the
+    #: criteria. Costs one extra call per task; off makes proof mechanical only.
+    inspect_proof: bool = True
     limits: Limits = field(default_factory=Limits)
     notify: Notify = field(default_factory=Notify)
 

@@ -49,6 +49,9 @@ class TaskState:
     pr_number: int | None = None
     pr_url: str | None = None
     ci_run_id: int | None = None
+    proof_kind: str | None = None
+    proof_detail: str | None = None
+    proof_artifacts: list[str] = field(default_factory=list)
     coder_session: str | None = None
     cost_usd: float = 0.0
     started_at: str | None = None
@@ -77,6 +80,9 @@ class TaskState:
             "pr_number": self.pr_number,
             "pr_url": self.pr_url,
             "ci_run_id": self.ci_run_id,
+            "proof_kind": self.proof_kind,
+            "proof_detail": self.proof_detail,
+            "proof_artifacts": list(self.proof_artifacts),
             "coder_session": self.coder_session,
             "cost_usd": round(self.cost_usd, 4),
             "started_at": self.started_at,

@@ -25,10 +25,20 @@ artifacts:
 
 proof:
   kind: emulator_screenshot
-  # Boot, install, let it settle, grab a frame. The screenshot is then checked
+  # Install, launch, let it settle, grab a frame. The screenshot is then checked
   # against the day's acceptance criteria and the design system.
+  timeout_s: 180
+  # A precondition, not a step. `adb` being installed with no device attached
+  # means this machine cannot demonstrate anything — which is reported as
+  # could-not-run, not as a failed day. Failing here would burn a retry budget
+  # on every developer machine without an emulator running.
+  #
+  # `adb get-state` and NOT `adb wait-for-device`: wait-for-device blocks forever
+  # when nothing is attached, which is the wrong primitive for a gate that must
+  # never hang. It hung this project's own test suite once.
+  requires:
+    - adb get-state
   steps:
-    - adb wait-for-device
     - adb install -r {artifacts.apk}
     - adb shell monkey -p {package} -c android.intent.category.LAUNCHER 1
     - sleep 5

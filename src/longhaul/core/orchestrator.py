@@ -19,12 +19,14 @@ from pathlib import Path
 
 from .. import profiles, roles
 from ..driver.base import AgentDriver, AgentRequest
+from ..gates import proof as proof_gate
 from ..gates.cheat import CheatGate
 from ..gates.secrets import SecretsGate
 from ..schema.config import Config
 from ..schema.plan import Plan, Task
 from ..schema.state import DONE, FAILED, HALTED, IN_PROGRESS, PARKED, State, now
 from . import devops, gitops, supervisor, worktree
+from . import inspect as inspect_mod
 from . import state as state_io
 
 DEFAULT_MAX_ATTEMPTS = 3
@@ -153,6 +155,10 @@ def run_task(
             report=report,
         )
 
+    proof = _prove(driver, plan, task, tree.path, root, config, ts)
+    if proof is not None:
+        return proof
+
     ship = gitops.ship(
         plan, task, tree.path, tree.branch, root,
         do_push=do_push and config.push, base=config.base_branch,
@@ -184,7 +190,50 @@ def run_task(
 
     ts.status = DONE
     ts.last_error = None
-    return Outcome(task, DONE, f"{report.summary()} · {ship.detail}", ts.cost_usd, report)
+    detail = f"{report.summary()} · {ship.detail}"
+    if ts.proof_detail:
+        detail = f"{report.summary()} · {ts.proof_detail} · {ship.detail}"
+    return Outcome(task, DONE, detail, ts.cost_usd, report)
+
+
+def _prove(driver, plan, task, worktree, root, config, ts) -> Outcome | None:
+    """Run the proof step and inspect what it produced. None means "carry on".
+
+    A proof that *could not run* is reported honestly and does not fail the
+    task — a machine without an emulator has demonstrated nothing either way,
+    and refusing to proceed would make the tool unusable off a CI runner. A
+    proof that ran and failed does fail the task.
+    """
+    profile = profiles.load(config.profile or plan.profile)
+    proof_dir = root / state_io.LONGHAUL_DIR / "proof" / f"day-{task.day:02d}" / task.id
+
+    result = proof_gate.run(profile, worktree, proof_dir)
+    ts.proof_kind = result.kind
+    ts.proof_artifacts = [str(p.relative_to(root)) for p in result.artifacts]
+    ts.proof_detail = result.summary()
+
+    if not result.kind:
+        return None
+    if not result.ran:
+        return None  # honest, recorded, and not a pass either
+    if not result.ok:
+        ts.last_error = f"{result.detail}\n\n{result.log[-4000:]}"
+        return _fail(ts, task, result.summary(), config.limits.max_attempts, ts.cost_usd)
+
+    if not config.inspect_proof:
+        return None
+
+    verdict = inspect_mod.run(driver, plan, task, result.artifacts, worktree)
+    ts.cost_usd += verdict.cost_usd
+    ts.proof_detail = f"{result.summary()} · {verdict.summary()}"
+    if verdict.ran and not verdict.passes:
+        ts.last_error = (
+            f"the artefact does not show what day {task.day} claims.\n"
+            f"observed: {verdict.observed}\n"
+            + "\n".join(f"- {p}" for p in verdict.problems or [])
+        )
+        return _fail(ts, task, verdict.summary(), config.limits.max_attempts, ts.cost_usd)
+    return None
 
 
 def _fail(ts, task, detail, max_attempts, cost, report=None, findings=None) -> Outcome:
