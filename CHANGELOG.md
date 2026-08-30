@@ -12,15 +12,25 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
-- **`20b09b8` feat(gates): scan every diff for credentials before anything is
+- **`dc3a033` feat(gates): scan every diff for credentials before anything is
   pushed.** `gates/secrets.py` blocks GitHub/Anthropic/OpenAI/AWS/Google/Slack/
   Stripe/Telegram tokens, private keys, credentials embedded in URLs, generic
-  secret-looking assignments, and any committed `.env`. Placeholders
-  (`your-key-here`, `<TOKEN>`, `${SECRET}`, `changeme`) still pass so docs and
-  examples work. Wired into the day loop alongside the cheat gate.
+  secret-looking assignments, and any committed `.env`. Placeholders and
+  interpolation holes still pass so docs and examples work. Wired into the day
+  loop and into `longhaul gate` alongside the cheat gate.
   It lands *before* the push machinery on purpose: push is the point of no
-  return, and rewriting history does not un-leak a token. One test uses the exact
-  shape of a PAT found sitting in a real `.git/config` during this project.
+  return, and rewriting history does not un-leak a token.
+  *Found while writing it:* the first version of these tests contained realistic
+  credential literals and **GitHub push protection rejected the push** — the
+  correct call, since a scanner's own fixtures are the likeliest hiding place for
+  a real secret. Every fixture is now assembled by concatenation, so no complete
+  credential string exists in any source file. A `# longhaul: allow-secret`
+  pragma covers fixtures that genuinely need a credential shape, and every use
+  emits a warning rather than being honoured silently.
+  *Also found, by running `longhaul gate` on this very diff:* the cheat gate
+  counted deleted test functions without counting added ones, so a net-positive
+  rewrite was blocked. Now measured net per file — blocking a rewrite teaches an
+  agent never to touch tests, the opposite of the intent.
 
 - **`ad4db06` feat(orchestrator): run a day's work — and close a gate bypass
   found by doing it.** `longhaul run` and `longhaul status`: pick the next
