@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/* Longhaul — the palette is stated as roles, not swatches, and every value the
+   interface uses comes from here. The same discipline the Designer role is told
+   to apply to the projects it plans. */
+@theme {
+  --color-surface: #f7f7f6;
+  --color-panel: #ffffff;
+  --color-panel-2: #fbfbfa;
+  --color-line: #e6e5e1;
+  --color-line-2: #efeeeb;
+  --color-ink: #1a1a19;
+  --color-ink-2: #5a5a56;
+  --color-muted: #86847e;
+  --color-accent: #2f6f4f;
+  --color-accent-soft: #e8f2ec;
+
+  --color-done: #2f6f4f;
+  --color-failed: #b3261e;
+  --color-parked: #9a6f14;
+  --color-halted: #7a3ea3;
+  --color-running: #1f6feb;
+  --color-pending: #b9b8b4;
+
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@layer base {
+  :root { color-scheme: light dark; }
+
+  .dark {
+    --color-surface: #0f0f0e;
+    --color-panel: #171716;
+    --color-panel-2: #1b1b19;
+    --color-line: #2a2a27;
+    --color-line-2: #232320;
+    --color-ink: #eceae5;
+    --color-ink-2: #b4b1aa;
+    --color-muted: #86847e;
+    --color-accent: #6fbf95;
+    --color-accent-soft: #172b22;
+
+    --color-done: #6fbf95;
+    --color-failed: #f2938c;
+    --color-parked: #d9b45a;
+    --color-halted: #c79ae8;
+    --color-running: #6aa6ff;
+    --color-pending: #45443f;
+  }
+
+  html, body { height: 100%; }
+  body {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Scrollbars that do not fight a dark theme. */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line); border-radius: 6px;
+    border: 2px solid var(--color-surface);
+  }
+}

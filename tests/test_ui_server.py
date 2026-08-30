@@ -15,6 +15,32 @@ from longhaul.core import state as state_io
 from longhaul.schema.state import DONE, FAILED, State
 from longhaul.ui import redact, server
 
+
+@pytest.fixture
+def no_bundle(monkeypatch, tmp_path):
+    """Force the zero-dependency fallback.
+
+    Both modes have to work: a released wheel ships the exported app, a source
+    checkout before `npm run build` does not, and the tool must be usable either
+    way. Whichever happens to exist on the machine running the suite cannot
+    decide which one gets tested.
+    """
+    monkeypatch.setattr(server, "STATIC_DIR", tmp_path / "absent")
+
+
+@pytest.fixture
+def bundle(monkeypatch, tmp_path):
+    """Force the bundled-app path, with a stand-in export."""
+    static = tmp_path / "static"
+    (static / "p" / "_").mkdir(parents=True)
+    (static / "index.html").write_text("<!doctype html><title>App</title>HOME")
+    (static / "p" / "_.html").write_text("<!doctype html>PROJECT")
+    (static / "p" / "_" / "tasks.html").write_text("<!doctype html>TASKS")
+    (static / "_next").mkdir()
+    (static / "_next" / "app.js").write_text("console.log(1)")
+    monkeypatch.setattr(server, "STATIC_DIR", static)
+    return static
+
 PLAN = {
     "project": "Neon Drift", "target_days": 2, "profile": "flutter-android",
     "milestones": [{"id": "m1", "title": "Core", "tasks": [
@@ -53,7 +79,8 @@ def get(url, path):
 
 # --- routes ---------------------------------------------------------------
 
-def test_the_root_serves_the_shell_with_the_live_listener(live):
+def test_the_fallback_page_is_served_when_no_app_is_bundled(no_bundle, live):
+    """A source checkout before `npm run build` still gets a working interface."""
     status, body, headers = get(live, "/")
     assert status == 200
     assert body.startswith("<!doctype html>")
@@ -62,11 +89,54 @@ def test_the_root_serves_the_shell_with_the_live_listener(live):
     assert headers["Content-Type"].startswith("text/html")
 
 
-def test_the_served_shell_carries_no_data_because_it_fetches_it(live):
+def test_the_fallback_page_carries_no_data_because_it_fetches_it(no_bundle, live):
     """The document stays small however long a project runs."""
     _status, body, _ = get(live, "/")
     assert 'id="longhaul-data"' not in body
     assert "/api/data" in body
+
+
+def test_the_bundled_app_is_served_when_present(bundle, live):
+    _status, body, _ = get(live, "/")
+    assert "HOME" in body
+
+
+def test_a_project_route_is_rewritten_onto_the_exported_file(bundle, live):
+    """A static export has no file for /p/neon-drift/tasks. Serving index.html
+    there would hand back the home page, so the route is rewritten onto the
+    prerendered `_` equivalent and the client reads the real id from the URL."""
+    assert "TASKS" in get(live, "/p/neon-drift/tasks")[1]
+    assert "PROJECT" in get(live, "/p/neon-drift")[1]
+
+
+def test_an_unknown_route_falls_back_to_the_app_shell(bundle, live):
+    assert "HOME" in get(live, "/something/else")[1]
+
+
+def test_a_missing_asset_is_a_404_not_the_app_shell(bundle, live):
+    """Otherwise a broken script tag returns HTML and fails confusingly."""
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        get(live, "/_next/missing.js")
+    assert exc.value.code == 404
+
+
+def test_the_bundled_app_cannot_serve_files_outside_itself(bundle, live):
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        get(live, "/_next/../../../etc/passwd")
+    assert exc.value.code == 404
+
+
+@pytest.mark.parametrize("route,expected", [
+    ("/p/neon-drift", "/p/_"),
+    ("/p/neon-drift/tasks", "/p/_/tasks"),
+    ("/p/a-b-c/chats", "/p/_/chats"),
+    ("/p/_", "/p/_"),
+    ("/p/_/tasks", "/p/_/tasks"),
+    ("/", "/"),
+    ("/_next/app.js", "/_next/app.js"),
+])
+def test_the_rewrite_only_touches_project_routes(route, expected):
+    assert server._rewrite_project_route(route) == expected
 
 
 def test_the_data_endpoint_returns_the_whole_payload(live):
@@ -103,7 +173,7 @@ def test_responses_carry_the_headers_that_stop_embedding(live):
 
 # --- it works without a plan ----------------------------------------------
 
-def test_a_missing_plan_renders_a_message_rather_than_crashing(tmp_path):
+def test_a_missing_plan_renders_a_message_rather_than_crashing(no_bundle, tmp_path):
     srv = server.serve(tmp_path, "127.0.0.1", 0)
     thread = threading.Thread(target=srv.serve_forever, daemon=True)
     thread.start()

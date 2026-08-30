@@ -40,6 +40,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/longhaul"]
+# The statically exported interface. Built by `cd web && npm run build` and
+# committed, so a user never needs Node.
+artifacts = ["src/longhaul/ui/static/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

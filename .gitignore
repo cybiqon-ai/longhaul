@@ -18,3 +18,7 @@ htmlcov/
 
 .env
 *.local
+
+# The exported interface IS committed — it ships in the wheel so users
+# never need Node. Rebuild with `cd web && npm run build`.
+!src/longhaul/ui/static/

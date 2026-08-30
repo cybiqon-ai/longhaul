@@ -56,6 +56,33 @@ jobs:
               print("::error::0 tests ran. A suite that runs nothing is not a pass."); sys.exit(1)
           PY
 
+  web:
+    # The interface ships pre-built in the wheel, so CI checks that what is
+    # committed still compiles — a broken export would reach users silently.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npx tsc --noEmit
+        working-directory: web
+      - name: Build, and fail if the committed export is stale
+        working-directory: web
+        run: |
+          npm run build
+          if ! git diff --quiet -- ../src/longhaul/ui/static; then
+            echo "::error::src/longhaul/ui/static is out of date."
+            echo "Run 'cd web && npm run build' and commit the result."
+            git diff --stat -- ../src/longhaul/ui/static
+            exit 1
+          fi
+          echo "export files: $(find ../src/longhaul/ui/static -type f | wc -l)"
+
   okf:
     runs-on: ubuntu-latest
     steps:

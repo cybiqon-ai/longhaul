@@ -12,6 +12,28 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`78b2a76` feat(web): a Next.js application, bundled into the wheel.** Next 16,
+  React 19, Tailwind 4, TanStack Table, Recharts. Routes: `/` lists every project
+  on this machine, and `/p/<id>` carries Overview, Timeline, Tasks, Agent runs,
+  **Chats**, Spend, Proof and Risks.
+  Chats is the new one: every agent run's full transcript, read back as a
+  conversation with its tool calls, results and any API retries it recovered
+  from.
+  It is **statically exported and committed into the Python package**, so a user
+  runs `uv tool install longhaul-ai` and gets the interface with no Node, no npm
+  and no build step. Contributors need a JavaScript toolchain; users never do.
+  CI builds it and fails if the committed export is stale, because a broken one
+  would otherwise reach users silently. `longhaul report` and the
+  zero-dependency fallback page both remain — two surfaces, different jobs.
+  *Found on `npm install`:* the pinned `next@15.5.4` carried a published security
+  advisory. Moved to 16.3.3 along with recharts 3 and eslint 10; `npm audit`
+  reports 0 vulnerabilities.
+  *Found by serving the export:* a static export prerenders `/p/[id]` as `/p/_`,
+  so there is no file for `/p/neon-drift/tasks` and the SPA fallback would have
+  served the **home** page instead. The server now rewrites project routes onto
+  the prerendered file, and the client reads the real id from `location.pathname`
+  rather than from params that say `_`.
+
 - **`90989e6` feat(api): a read-only HTTP surface, and test isolation that was
   missing.** `/api/projects` for the home screen, `/api/projects/<id>` for the
   full payload, `/api/projects/<id>/transcript/<path>` for one stored run.

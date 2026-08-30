@@ -115,7 +115,7 @@ def test_the_suite_cannot_reach_the_real_home(isolate_longhaul_home, tmp_path):
     at pytest temp directories in a developer's actual registry."""
     from pathlib import Path
 
-    assert registry.REGISTRY_PATH == isolate_longhaul_home / "projects.json"
+    assert isolate_longhaul_home / "projects.json" == registry.REGISTRY_PATH
     assert Path.home() not in registry.REGISTRY_PATH.parents
     registry.register(project(tmp_path, "sandboxed"))
     assert registry.REGISTRY_PATH.is_file()

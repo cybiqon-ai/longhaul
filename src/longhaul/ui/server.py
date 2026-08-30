@@ -13,6 +13,7 @@ from __future__ import annotations
 import errno
 import json
 import mimetypes
+import re
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -28,6 +29,18 @@ from . import render as ui_render
 from .data import build
 
 DEFAULT_PORT = 4321
+
+PROJECT_ROUTE = re.compile(r"^/p/(?!_(?:/|$))[^/]+(?P<rest>/.*)?$")
+
+
+def _rewrite_project_route(route: str) -> str:
+    """`/p/neon-drift/tasks` → `/p/_/tasks`, the file the export actually made."""
+    match = PROJECT_ROUTE.match(route)
+    if not match:
+        return route
+    rest = match.group("rest") or ""
+    return f"/p/_{rest}"
+
 
 #: The statically exported Next.js app, bundled into the wheel at release time.
 #: Absent in a source checkout until `cd web && npm run build`, in which case the
@@ -153,12 +166,15 @@ def _handler(root: Path):
             self._json(body, 404 if body.get("error") == "not found" else 200)
 
         def _static(self, route: str) -> None:
-            """Serve the exported app, falling back to its shell for any route.
+            """Serve the exported app.
 
-            A statically exported single-page app has no file for /p/neon-drift,
-            so an unknown path that is not an asset gets index.html and the
-            client router takes it from there.
+            A static export prerenders `/p/[id]` as `/p/_`, so there is no file
+            for `/p/neon-drift/tasks`. Serving index.html there would hand back
+            the *home* page, which is why the project routes are rewritten onto
+            their `_` equivalent instead — the client reads the real id from the
+            URL. Anything else that is not an asset falls back to index.html.
             """
+            route = _rewrite_project_route(route)
             candidate = (STATIC_DIR / route.lstrip("/")).resolve()
             try:
                 candidate.relative_to(STATIC_DIR.resolve())
@@ -166,8 +182,16 @@ def _handler(root: Path):
                 self._send(b"not found", "text/plain; charset=utf-8", 404)
                 return
 
-            if candidate.is_dir():
-                candidate = candidate / "index.html"
+            # Order matters. The export writes both `p/_.html` (the page) and
+            # `p/_/` (a directory holding its subroutes), so resolving the
+            # directory first would serve neither.
+            if not candidate.is_file():
+                sibling = candidate.with_suffix(".html")
+                if candidate.suffix == "" and sibling.is_file():
+                    candidate = sibling
+                elif candidate.is_dir() and (candidate / "index.html").is_file():
+                    candidate = candidate / "index.html"
+
             if not candidate.is_file():
                 if "." in route.rsplit("/", 1)[-1]:  # a missing asset, not a route
                     self._send(b"not found", "text/plain; charset=utf-8", 404)

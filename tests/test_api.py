@@ -9,7 +9,8 @@ import json
 import pytest
 import yaml
 
-from longhaul.core import registry, state as state_io, transcript
+from longhaul.core import registry, transcript
+from longhaul.core import state as state_io
 from longhaul.schema.state import DONE, PARKED, State
 from longhaul.ui import api
 
