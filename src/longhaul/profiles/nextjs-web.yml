@@ -1,0 +1,46 @@
+# Next.js on Node, deployed as a web application.
+#
+# A second profile exists partly to be useful and partly to keep the profile
+# mechanism honest: anything hard-coded for Flutter shows up the moment a
+# genuinely different stack is described in the same shape.
+name: nextjs-web
+description: A Next.js application built with npm, verified by loading the real page in a browser.
+
+requires:
+  - node
+  - npm
+
+commands:
+  install: npm ci
+  lint: npm run lint
+  test: npm test -- --run
+  build: npm run build
+  # Report a count, not a status. A suite that ran nothing is not a pass, and
+  # Longhaul reads this number rather than trusting the exit code.
+  test_count: "npx vitest run --reporter=json 2>/dev/null | node -e \"let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{try{console.log(JSON.parse(d).numTotalTests||0)}catch{console.log(0)}})\""
+
+artifacts:
+  build: .next
+
+proof:
+  kind: browser_screenshot
+  timeout_s: 240
+  # A precondition, not a step: a machine without Playwright's browsers
+  # installed cannot demonstrate anything, which is a different fact from the
+  # change being broken. Reported as could-not-run rather than as a failed day.
+  requires:
+    - npx playwright --version
+  steps:
+    # Serve the build, wait for it to answer, then photograph what a person
+    # would actually see. `npm run build` passing is not evidence the page loads.
+    - npx --yes next start -p 3999 & echo $! > {proof_dir}/server.pid
+    - npx --yes wait-on -t 60000 http://127.0.0.1:3999
+    - npx playwright screenshot --wait-for-timeout=2000 http://127.0.0.1:3999 {proof_dir}/screenshot.png
+    - kill "$(cat {proof_dir}/server.pid)" || true
+    - rm -f {proof_dir}/server.pid
+
+gates:
+  coverage_ratchet: true
+  test_count_ratchet: true
+  cheat: true
+  secrets: true

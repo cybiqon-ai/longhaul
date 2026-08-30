@@ -253,7 +253,7 @@ def cmd_report(args: argparse.Namespace) -> int:
         print(ui_render.to_json(plan, state))
         return 0
 
-    out = ui_render.write(plan, state, Path(args.out), ledger)
+    out = ui_render.write(plan, state, Path(args.out), ledger, root=root)
     summary = ui_render.summary(plan, state)
     print(f"wrote {out}  ({out.stat().st_size:,} bytes)")
     print(

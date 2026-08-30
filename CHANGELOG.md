@@ -12,6 +12,22 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`b1ddab9` feat(gallery): every day's proof in one strip, and a second
+  profile.** The gallery is the most persuasive thing this tool produces —
+  fourteen screenshots of an application visibly appearing, one per day, each
+  something you can look at rather than a number you have to trust. In
+  `report.html` images are embedded as data URIs so the page stays genuinely
+  self-contained; above a per-image and a whole-page budget they are linked
+  instead, and the page says which, because a 40MB file nobody can open is not
+  better than a link. The live server links rather than embeds and serves them
+  from `/.longhaul/proof/`, with path-traversal protection proven by tests
+  (including percent-encoded attempts) rather than assumed.
+  Adds the `nextjs-web` profile — partly to be useful, partly to keep the
+  profile mechanism honest: anything hard-coded for Flutter shows up the moment
+  a genuinely different stack is described in the same shape. Its proof serves
+  the real build and photographs the page, because `npm run build` passing is not
+  evidence the page loads.
+
 - **`4ad3a0c` feat(proof): does it actually run?** Tests passing is not evidence
   an application works — a Flutter app can compile, lint clean and pass every
   test while showing a grey screen. Each task declares what proof means, the

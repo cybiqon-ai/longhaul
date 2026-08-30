@@ -12,16 +12,19 @@ from __future__ import annotations
 
 import errno
 import json
+import mimetypes
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import unquote
 
 import yaml
 
 from ..schema.plan import Plan, PlanError
 from ..schema.state import State
 from . import render as ui_render
+from .gallery import collect
 
 DEFAULT_PORT = 4321
 POLL_INTERVAL_S = 1.0
@@ -83,9 +86,14 @@ def _handler(root: Path):
                     f"<!doctype html><meta charset='utf-8'>"
                     f"<title>Longhaul</title><p>{problem}</p>"
                 ).encode()
+            # Served locally, so link rather than embed: the browser can fetch
+            # /proof/... and the page stays small however long the project runs.
+            gallery = collect(root, embed=False)
             if live:
-                return ui_render.render(plan, state, ledger, live=True).encode()
-            return ui_render.render_main(plan, state, ledger).encode()
+                return ui_render.render(
+                    plan, state, ledger, live=True, gallery=gallery
+                ).encode()
+            return ui_render.render_main(plan, state, ledger, gallery).encode()
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib signature
             route = self.path.split("?", 1)[0]
@@ -101,10 +109,29 @@ def _handler(root: Path):
                     else ui_render.to_json(plan, state)
                 )
                 self._send(body.encode(), "application/json")
+            elif route.startswith("/.longhaul/proof/"):
+                self._proof(route)
             elif route == "/events":
                 self._events()
             else:
                 self._send(b"not found", "text/plain; charset=utf-8", 404)
+
+        def _proof(self, route: str) -> None:
+            """Serve a proof artefact, and nothing outside the proof directory."""
+            proof_root = (root / ".longhaul" / "proof").resolve()
+            try:
+                requested = (root / unquote(route.lstrip("/"))).resolve()
+                # `resolve()` collapses `..`; this is what stops the URL walking
+                # out of the proof directory and serving the rest of the disk.
+                requested.relative_to(proof_root)
+            except (ValueError, OSError):
+                self._send(b"not found", "text/plain; charset=utf-8", 404)
+                return
+            if not requested.is_file():
+                self._send(b"not found", "text/plain; charset=utf-8", 404)
+                return
+            mime = mimetypes.guess_type(requested.name)[0] or "application/octet-stream"
+            self._send(requested.read_bytes(), mime)
 
         def _events(self) -> None:
             self.send_response(200)

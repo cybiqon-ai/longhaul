@@ -47,3 +47,10 @@ a { color: var(--accent); }
 footer { margin-top: 3rem; color: var(--muted); font-size: .82rem;
          border-top: 1px solid var(--line); padding-top: 1rem; }
 code { font: .85em ui-monospace, SFMono-Regular, Menlo, monospace; }
+.gallery { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+           margin-top: .5rem; }
+.shot { margin: 0; background: var(--panel); border: 1px solid var(--line);
+        border-radius: .5rem; overflow: hidden; }
+.shot img { display: block; width: 100%; height: auto; background: var(--bg); }
+.shot figcaption { padding: .4rem .6rem; font-size: .78rem; color: var(--muted);
+                   border-top: 1px solid var(--line); }

@@ -184,3 +184,52 @@ def test_serve_raises_a_typed_error_rather_than_a_bare_oserror(project):
             server.serve(project, "127.0.0.1", held.server_address[1])
     finally:
         held.server_close()
+
+
+# --- serving proof artefacts ----------------------------------------------
+
+def _put_proof(root, name=b"screenshot.png"):
+    path = root / ".longhaul" / "proof" / "day-01" / "t1" / "screenshot.png"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\x89PNG\r\nimagebytes")
+    return path
+
+
+def test_a_proof_artefact_is_served_with_its_real_type(project, live):
+    _put_proof(project)
+    with urllib.request.urlopen(
+        live + "/.longhaul/proof/day-01/t1/screenshot.png", timeout=5
+    ) as r:
+        assert r.status == 200
+        assert r.headers["Content-Type"] == "image/png"
+        assert r.read() == b"\x89PNG\r\nimagebytes"
+
+
+@pytest.mark.parametrize("attack", [
+    "/.longhaul/proof/../../../etc/passwd",
+    "/.longhaul/proof/../state.json",
+    "/.longhaul/proof/day-01/../../../../etc/hosts",
+    "/.longhaul/proof/%2e%2e/%2e%2e/state.json",
+])
+def test_the_proof_route_cannot_walk_out_of_the_proof_directory(live, attack):
+    """This route reads files off disk by URL, so it has to be proven, not
+    assumed. Percent-encoding is decoded before the check, not after."""
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        get(live, attack)
+    assert exc.value.code == 404
+
+
+def test_a_missing_artefact_is_a_404_not_a_stack_trace(live):
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        get(live, "/.longhaul/proof/day-99/t9/nope.png")
+    assert exc.value.code == 404
+
+
+def test_the_live_page_links_artefacts_rather_than_embedding_them(project, live):
+    """Served locally the browser can fetch them, so the page stays small
+    however long the project runs."""
+    _put_proof(project)
+    _status, body, _ = get(live, "/")
+    assert "Proof" in body
+    assert ".longhaul/proof/day-01/t1/screenshot.png" in body
+    assert "data:image/png;base64," not in body
