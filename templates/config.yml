@@ -1,0 +1,30 @@
+# .longhaul/config.yml — every field is optional; these are the defaults.
+#
+# Every limit here is enforced by the orchestrator, never by asking an agent to
+# police itself. An agent told to respect a budget is an agent that will report
+# having respected the budget.
+
+profile: flutter-android      # which stack; see `longhaul plan --help`
+base_branch: main
+push: true                    # false keeps every commit local
+
+# The single biggest trust decision in this project. There is no supported way
+# to turn this on yet. Longhaul opens pull requests and waits for you.
+auto_merge: false
+
+limits:
+  max_attempts: 3             # attempts at one task before it is abandoned
+  identical_failures: 2       # the same error twice running halts the task —
+                              # retrying a deterministic failure only spends money
+  cost_usd_per_task: 5.00
+  cost_usd_per_day: 20.00
+  cost_usd_total: 200.00
+  minutes_per_task: 60
+
+notify:
+  backend: none               # none | telegram
+  on_success: true            # false sends only failures and decisions
+
+# Telegram credentials come from the environment, never from this file, which is
+# committed to your repository:
+#   TELEGRAM_TOKEN, TELEGRAM_CHAT_ID

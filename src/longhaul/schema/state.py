@@ -21,12 +21,14 @@ IN_PROGRESS = "in_progress"
 DONE = "done"
 FAILED = "failed"
 PARKED = "parked"
+HALTED = "halted"
 SKIPPED = "skipped"
 
-STATUSES = (PENDING, IN_PROGRESS, DONE, FAILED, PARKED, SKIPPED)
+STATUSES = (PENDING, IN_PROGRESS, DONE, FAILED, PARKED, HALTED, SKIPPED)
 
 #: Statuses a task will never leave on its own. `failed` is absent on purpose:
-#: it is retryable up to the attempt budget, and `parked` needs a human.
+#: it is retryable up to the attempt budget. `parked` needs a human, and
+#: `halted` needs a human to raise a ceiling or fix the underlying cause.
 TERMINAL = (DONE, SKIPPED)
 
 
@@ -54,6 +56,8 @@ class TaskState:
     last_error: str | None = None
     #: Human-readable one-liners; the full detail lives in .longhaul/runs/.
     findings: list[str] = field(default_factory=list)
+    #: One stable id per failure, so 'the same error again' is detectable.
+    error_fingerprints: list[str] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> TaskState:
@@ -79,6 +83,7 @@ class TaskState:
             "finished_at": self.finished_at,
             "last_error": self.last_error,
             "findings": list(self.findings),
+            "error_fingerprints": list(self.error_fingerprints),
         }
 
 

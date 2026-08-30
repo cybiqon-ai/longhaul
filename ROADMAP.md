@@ -16,10 +16,11 @@ the roles are unimplemented, so nothing downstream has to be rewritten later.
 
 ## v0.2 — it does many days unattended
 
-Supervisor: bounded retries with the real error fed back, loop detection, cost
-and wall-clock ceilings. The cheat-detector gates. Scheduling — cron, systemd
-timer, and a GitHub Actions template. Resume after crash. `longhaul ui` live on
-`:4321`.
+Supervisor ✅ — bounded retries with the real error fed back, loop detection,
+cost ceilings, `flock` so a cron cannot overlap itself, and `longhaul kill`.
+The cheat and secrets gates ✅. Resume after crash ✅. Notifier ✅ (Telegram).
+Still to come: scheduling templates (cron, systemd, GitHub Actions) and
+`longhaul ui` live on `:4321`.
 
 ## v0.3 — it makes something you can look at
 

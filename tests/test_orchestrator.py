@@ -14,7 +14,7 @@ from longhaul.core import state as state_io
 from longhaul.core.devops import BuildReport, Step
 from longhaul.driver.base import AgentResult
 from longhaul.schema.plan import Plan
-from longhaul.schema.state import DONE, FAILED, PARKED, State
+from longhaul.schema.state import DONE, FAILED, HALTED, PARKED, State
 
 PLAN = {
     "project": "Neon Drift",
@@ -214,14 +214,51 @@ def test_a_retry_resumes_the_session_and_carries_the_error(repo, monkeypatch):
     assert s.tasks["t1"].attempts == 2
 
 
-def test_the_retry_budget_is_reported_when_exhausted(repo, monkeypatch):
+def test_a_deterministic_failure_halts_before_the_attempt_budget_runs_out(repo, monkeypatch):
+    """The Supervisor's whole point: the same error twice is not worth a third try."""
     patch_coder_writes(monkeypatch)
     patch_devops(monkeypatch, BuildReport(steps=[Step("test", "pytest", 1, "boom", 0.1)]))
     s = State()
     p = plan()
-    for _ in range(orchestrator.DEFAULT_MAX_ATTEMPTS):
+    for _ in range(3):
         out = orchestrator.run_task(FakeDriver(), p, p.task("t1"), s, repo)
-    assert "retry budget exhausted" in out.detail
+    assert out.status == HALTED
+    assert "same error 2 times" in out.detail
+    assert s.tasks["t1"].attempts == 2, "it must stop trying, not just report"
+
+
+def test_the_attempt_budget_still_applies_when_the_errors_differ(repo, monkeypatch):
+    patch_coder_writes(monkeypatch)
+    s = State()
+    p = plan()
+    for i in range(4):
+        patch_devops(monkeypatch, BuildReport(
+            steps=[Step("test", "pytest", 1, f"distinct failure {i}", 0.1)]))
+        out = orchestrator.run_task(FakeDriver(), p, p.task("t1"), s, repo)
+    assert out.status == HALTED
+    assert "attempts" in out.detail
+
+
+def test_a_halted_task_is_not_picked_up_again():
+    """And its dependents stay blocked — halted is not settled."""
+    s = State()
+    s.task("t1").status = HALTED
+    nxt = orchestrator.next_task(plan(), s)
+    assert nxt.id != "t1"
+    assert nxt.id != "t2", "t2 depends on t1, which never completed"
+
+
+def test_a_cost_ceiling_halts_before_spending_anything(repo, monkeypatch):
+    from longhaul.schema.config import Config, Limits
+
+    driver = FakeDriver()
+    s = State()
+    s.task("t0").cost_usd = 500.0
+    p = plan()
+    out = orchestrator.run_task(
+        driver, p, p.task("t1"), s, repo, config=Config(limits=Limits(cost_usd_total=100.0)))
+    assert out.status == HALTED
+    assert driver.requests == [], "a ceiling must stop the call, not report after it"
 
 
 # --- the day loop ---------------------------------------------------------

@@ -12,6 +12,24 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`ed24cee` feat(supervisor,notify): ceilings, loop detection, a lock, and a
+  Telegram digest.** The last pieces before this is safe to leave on a cron.
+  `.longhaul/config.yml` with conservative defaults (`auto_merge: false`, and no
+  supported way to change it); project/daily/per-task cost ceilings and an
+  attempt budget, all enforced outside the agent; `flock` so a scheduled run
+  cannot overlap itself; `longhaul kill`; a `halted` status distinct from
+  `failed`. A Telegram notifier that never raises and treats a confirmed
+  `message_id` as the only evidence a message landed, sending a digest that
+  reports counts rather than a status.
+  *Found while writing it:* the loop detector normalised every number out of an
+  error before fingerprinting, so `expected 1, got 2` and `expected 3, got 4`
+  looked identical — an agent making real progress would have been halted as a
+  loop. Over-normalising is worse than under-normalising here: a missed loop
+  costs one retry, a false loop costs the task.
+  *Also:* a test that compared a value to itself, which is coverage-shaped and
+  proves nothing, rewritten to actually check the shipped config template against
+  the code's defaults.
+
 - **`1c8c71e` feat(gitops): commit, push, open a PR — and prove CI actually
   ran.** `core/gitops.py` plus a stdlib-`urllib` GitHub client. Conventional
   commit derived from the task, PR body listing the acceptance criteria and which

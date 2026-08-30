@@ -1,13 +1,17 @@
 """The `longhaul` command.
 
-v0.0.1 is scaffolding: `doctor`, `gate` and `version` do real work; the rest of
-the surface is declared so the shape is visible and stable, and exits 2 with a
-pointer to the roadmap. See plan.md for the design and ROADMAP.md for staging.
+Working today: `doctor`, `gate`, `plan`, `simulate`, `run`, `status`, `kill`.
+Still declared but unimplemented — `init`, `report`, `ui`, `rollback` — so the
+shape of the tool is visible; those exit 2 with a pointer to the roadmap.
+
+See plan.md for the design, with live build-status markers, and ROADMAP.md for
+what lands when.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -15,13 +19,15 @@ from pathlib import Path
 import yaml
 
 from . import __version__, doctor, profiles
-from .core import orchestrator, planner, worktree
+from .core import notify, orchestrator, planner, worktree
 from .core import state as state_io
+from .core.lock import AlreadyRunning, acquire
 from .driver.cli_driver import ClaudeAuthError, CliDriver
 from .gates.cheat import CheatGate
 from .gates.secrets import SecretsGate
+from .schema.config import Config
 from .schema.plan import Plan, PlanError
-from .schema.state import DONE, FAILED, PARKED
+from .schema.state import DONE, FAILED, HALTED, PARKED
 
 NOT_YET = 2
 
@@ -169,11 +175,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("\nnothing was run (--dry-run)")
         return 0
 
+    config = Config.load(root)
     print(f"day {task.day}/{plan.target_days}  {task.id}  {task.title}")
     try:
-        outcome = orchestrator.run_day(
-            CliDriver(), plan, state, root, do_push=not args.no_push
-        )
+        with acquire(root):
+            outcome = orchestrator.run_day(
+                CliDriver(), plan, state, root,
+                config=config, do_push=not args.no_push,
+            )
+    except AlreadyRunning as exc:
+        print(f"{exc}")
+        return 0  # a skipped overlapping run is not an error
     except ClaudeAuthError as exc:
         print(f"\nclaude is not usable: {exc}")
         print("run `longhaul doctor` — an expired session can look like success.")
@@ -181,11 +193,49 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     print(f"\n{outcome.status}: {outcome.detail}")
     counts = state.counts()
+    counts["pending"] += sum(1 for t in plan.tasks if t.id not in state.tasks)
     print(
         f"\ntasks: {len(plan.tasks)}  done: {counts['done']}  failed: {counts['failed']}  "
-        f"parked: {counts['parked']}  spent: ${state.total_cost_usd:.2f}"
+        f"parked: {counts['parked']}  halted: {counts['halted']}  "
+        f"pending: {counts['pending']}  spent: ${state.total_cost_usd:.2f}"
     )
+
+    delivery = notify.send(
+        config, plan, state,
+        f"{outcome.status}: {outcome.detail.splitlines()[0]}",
+        failure=outcome.status not in (DONE, "idle"),
+    )
+    if delivery.attempted:
+        # A notification that did not land is worse than none, because it looks
+        # like everything is fine.
+        print(f"notify: {delivery.detail}")
     return outcome.exit_code
+
+
+def cmd_kill(args: argparse.Namespace) -> int:
+    """Stop the current run, and leave a record of why."""
+    root = Path.cwd()
+    lock = root / ".longhaul" / "lock"
+    if not lock.is_file():
+        print("no run in progress")
+        return 0
+    pid = lock.read_text().strip()
+    if not pid.isdigit():
+        print(f"{lock} holds no pid")
+        return 1
+    import signal
+
+    try:
+        os.kill(int(pid), signal.SIGTERM)
+    except ProcessLookupError:
+        print(f"pid {pid} is not running — the lock is stale, removing it")
+        lock.unlink(missing_ok=True)
+        return 0
+    except PermissionError:
+        print(f"not permitted to signal pid {pid}")
+        return 1
+    print(f"sent SIGTERM to {pid}; state on disk is the last completed step")
+    return 0
 
 
 def cmd_status(args: argparse.Namespace) -> int:
@@ -202,7 +252,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         print(f"  {icon} day {task.day:>2}  {task.id:<4} {task.title[:56]}{attempts}")
         if ts and ts.pr_url:
             print(f"        PR #{ts.pr_number}  {ts.pr_url}")
-        if ts and ts.status == FAILED and ts.last_error:
+        if ts and ts.status in (FAILED, HALTED) and ts.last_error:
             print(f"        {ts.last_error.splitlines()[0][:70]}")
 
     counts = state.counts()
@@ -269,12 +319,14 @@ def build_parser() -> argparse.ArgumentParser:
     st = sub.add_parser("status", help="show progress against the plan")
     st.set_defaults(func=cmd_status)
 
+    k = sub.add_parser("kill", help="stop the run in progress")
+    k.set_defaults(func=cmd_kill)
+
     planned = {
         "init": "v0.1",
         "report": "v0.1",
         "ui": "v0.2",
         "rollback": "v0.2",
-        "kill": "v0.2",
     }
     for name, version in planned.items():
         p = sub.add_parser(name, help=f"(planned, {version})")

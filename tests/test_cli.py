@@ -128,3 +128,62 @@ def test_run_accepts_no_push():
     args = parser.parse_args(["run", "--no-push"])
     assert args.no_push is True
     assert parser.parse_args(["run"]).no_push is False
+
+
+def test_kill_with_no_run_in_progress_is_not_an_error(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    assert main(["kill"]) == 0
+    assert "no run in progress" in capsys.readouterr().out
+
+
+def test_kill_cleans_up_a_stale_lock(tmp_path, monkeypatch, capsys):
+    """A lock left by a process that died is not a reason to refuse forever."""
+    monkeypatch.chdir(tmp_path)
+    lock = tmp_path / ".longhaul" / "lock"
+    lock.parent.mkdir(parents=True)
+    lock.write_text("999999\n")  # a pid that cannot exist
+    assert main(["kill"]) == 0
+    assert not lock.exists()
+    assert "stale" in capsys.readouterr().out
+
+
+def test_an_overlapping_run_is_skipped_not_failed(tmp_path, monkeypatch, capsys):
+    """Two orchestrators sharing one state.json corrupt both, but a skipped
+    overlapping cron tick is normal and must not page anyone."""
+    import subprocess
+
+    import yaml
+
+    from longhaul.core.lock import acquire
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".longhaul").mkdir(exist_ok=True)
+    (tmp_path / ".longhaul" / "plan.yaml").write_text(yaml.safe_dump({
+        "project": "p", "target_days": 1, "profile": "flutter-android",
+        "milestones": [{"id": "m1", "title": "m", "tasks": [
+            {"id": "t1", "day": 1, "title": "a", "acceptance_criteria": ["x"]}]}],
+    }))
+    with acquire(tmp_path):
+        assert main(["run"]) == 0
+    assert "another longhaul run" in capsys.readouterr().out
+
+
+def test_config_template_matches_the_defaults():
+    """The template is documentation; if it drifts from the code it misleads."""
+    from pathlib import Path
+
+    import yaml
+
+    from longhaul.schema.config import Config
+
+    root = Path(__file__).resolve().parents[1]
+    template = yaml.safe_load((root / "templates" / "config.yml").read_text())
+    defaults = Config()
+    assert Config.from_dict(template).limits == defaults.limits, (
+        "the template's limits must be the code's defaults, or it misleads"
+    )
+    assert template["auto_merge"] == defaults.auto_merge
+    assert template["limits"]["max_attempts"] == defaults.limits.max_attempts
+    assert template["limits"]["identical_failures"] == defaults.limits.identical_failures
+    assert template["notify"]["backend"] == defaults.notify.backend

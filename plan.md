@@ -55,15 +55,15 @@ Coder writes code and DevOps verifies it, but nothing is committed or pushed.
 
 | Piece | Status |
 |---|---|
-| `doctor` · `gate` · `plan` · `simulate` · `run` · `status` | ✅ |
-| `init` · `report` · `ui` · `rollback` · `kill` | — |
+| `doctor` · `gate` · `plan` · `simulate` · `run` · `status` · `kill` | ✅ |
+| `init` · `report` · `ui` · `rollback` | — |
 | **Planner** | ✅ real 14-day plan, $0.72, committed as `examples/android-game/plan.yaml` |
 | **Orchestrator** | ✅ selects, isolates, runs, gates, builds, commits, pushes, opens a PR |
 | **Coder** | ✅ implements one task in a worktree, retries with the real error |
 | **DevOps/QA** | ✅ **deterministic, not an agent** — see the note under §DevOps below |
 | **Git Ops** | ✅ conventional commit, push, PR, **and verifies a CI run actually started** |
-| **Notifier** | — next slice |
-| **Supervisor** | 🔨 retry budget and attempt counting only; no ceilings, no loop detection |
+| **Notifier** | ✅ Telegram, pluggable, never raises, confirms a `message_id` |
+| **Supervisor** | ✅ cost/day/task ceilings, attempt budget, loop detection, `flock`, `kill` |
 | Designer · Assets · Reviewer · Scribe · Issues | — |
 | `plan.yaml` + `state.json` contracts | ✅ validated hard, 87 tests |
 | Cheat gate | ✅ runs before the build, blocks the task |
@@ -151,8 +151,8 @@ to answer").
 | **Coder** ✅ | Implements today's task in an isolated worktree; writes code *and* tests | Per task |
 | **DevOps/QA** ✅ | Build, lint, typecheck, test — reports structured pass/fail with real errors. **Implemented deterministically rather than as an agent**: running the suite needs no judgement, and a model reporting on its own tests is the self-report this project removes | Per task |
 | **Git Ops** ✅ | Worktree, conventional commit, push, open PR, and verify a CI run actually started. Deterministic, not an agent | Per task |
-| **Notifier** — | Telegram digest, failure alerts, decision requests | Every interesting transition |
-| **Supervisor** 🔨 | Wraps every agent call: retry budget, loop detection, cost/time ceilings, hard halt | Continuous |
+| **Notifier** ✅ | Telegram digest, failure alerts, decision requests. Never raises; a confirmed `message_id` is the only evidence it landed | Every interesting transition |
+| **Supervisor** ✅ | Wraps every agent call: retry budget, loop detection, cost/time ceilings, hard halt | Continuous |
 | **Designer** `v0.3` | Day-1 design system (palette, type scale, spacing, motion, tone) + per-screen specs. Later UI tasks are checked against it | Once, then per UI task |
 | **Assets** `v0.3` | Sprites, icons, audio; writes `assets/CREDITS.md` with license provenance | Per asset task |
 | **Reviewer** `v0.4` | Diffs the change against the task's acceptance criteria; flags scope creep, security, breaking changes; writes ADRs | Per task, pre-merge |
@@ -299,7 +299,7 @@ retro run re-plans the remaining days from measured velocity and reports the sli
 plainly — *"Day 8/14, 5 done, 3 slipped, forecast Day 17."* A deadline forecast
 the tool refuses to flatter is the whole point of tracking one.
 
-### 6. Budget, ceilings and a kill switch `🔨 ledger built; ceilings not`
+### 6. Budget, ceilings and a kill switch `✅ BUILT`
 `total_cost_usd` arrives free in every `--output-format json` response. Enforce
 per-task, per-day and per-project ceilings plus wall-clock caps in the
 Supervisor — not by asking the agent to police itself. `longhaul kill` stops
@@ -333,7 +333,7 @@ Each task runs in a `git worktree`, not just a branch, so a wedged day can't
 break the main checkout. Every completed day is a tag → `longhaul rollback day-7`.
 Optional Docker for full isolation.
 
-### 11. Escalate without halting
+### 11. Escalate without halting `🔨 parking works; Telegram commands not`
 A single ambiguous decision should not stop a 14-day project. Park the task in a
 `needs-human` queue, continue with unblocked tasks, and record the resolution as
 an ADR. Telegram commands `/status /pause /resume /approve /skip /logs`, with the

@@ -21,9 +21,10 @@ from .. import profiles, roles
 from ..driver.base import AgentDriver, AgentRequest
 from ..gates.cheat import CheatGate
 from ..gates.secrets import SecretsGate
+from ..schema.config import Config
 from ..schema.plan import Plan, Task
-from ..schema.state import DONE, FAILED, IN_PROGRESS, PARKED, State, now
-from . import devops, gitops, worktree
+from ..schema.state import DONE, FAILED, HALTED, IN_PROGRESS, PARKED, State, now
+from . import devops, gitops, supervisor, worktree
 from . import state as state_io
 
 DEFAULT_MAX_ATTEMPTS = 3
@@ -55,7 +56,7 @@ def next_task(plan: Plan, state: State) -> Task | None:
     """
     for task in sorted(plan.tasks, key=lambda t: (t.day, t.id)):
         ts = state.tasks.get(task.id)
-        if ts and ts.status in (DONE, PARKED, "skipped"):
+        if ts and ts.status in (DONE, PARKED, HALTED, "skipped"):
             continue
         if ts and ts.status == FAILED and ts.attempts >= DEFAULT_MAX_ATTEMPTS:
             continue
@@ -71,11 +72,20 @@ def run_task(
     state: State,
     root: Path,
     profile_name: str | None = None,
-    max_attempts: int = DEFAULT_MAX_ATTEMPTS,
+    config: Config | None = None,
     do_push: bool = True,
 ) -> Outcome:
+    config = config or Config()
+    max_attempts = config.limits.max_attempts
     ts = state.task(task.id)
     ts.day = task.day
+
+    halt = supervisor.check_before(state, ts, task, config)
+    if halt:
+        ts.status = HALTED
+        ts.finished_at = now()
+        ts.last_error = halt.reason
+        return Outcome(task, HALTED, f"halted ({halt.scope}): {halt.reason}", ts.cost_usd)
 
     if task.needs_human:
         ts.status = PARKED
@@ -83,7 +93,7 @@ def run_task(
         ts.last_error = "the plan reserved this decision for a human"
         return Outcome(task, PARKED, "parked: the plan flagged this task needs_human")
 
-    profile = profiles.load(profile_name or plan.profile)
+    profile = profiles.load(profile_name or config.profile or plan.profile)
 
     tree = worktree.create(task.id, root=root)
     ts.branch, ts.worktree = tree.branch, str(tree.path.relative_to(root))
@@ -145,7 +155,10 @@ def run_task(
             report=report,
         )
 
-    ship = gitops.ship(plan, task, tree.path, tree.branch, root, do_push=do_push)
+    ship = gitops.ship(
+        plan, task, tree.path, tree.branch, root,
+        do_push=do_push and config.push, base=config.base_branch,
+    )
     ts.commit_sha = ship.sha
     ts.pr_number = ship.pr_number
     ts.pr_url = ship.pr_url
@@ -164,6 +177,7 @@ def run_task(
 def _fail(ts, task, detail, max_attempts, cost, report=None, findings=None) -> Outcome:
     ts.status = FAILED
     ts.last_error = ts.last_error or detail
+    supervisor.record_failure(ts, ts.last_error)
     ts.finished_at = now()
     if ts.attempts >= max_attempts:
         detail += f"\nretry budget exhausted ({ts.attempts}/{max_attempts}) — halting this task"
@@ -204,6 +218,7 @@ def run_day(
     state: State,
     root: Path,
     profile_name: str | None = None,
+    config: Config | None = None,
     do_push: bool = True,
 ) -> Outcome:
     task = next_task(plan, state)
@@ -211,6 +226,8 @@ def run_day(
         return Outcome(None, "idle", "no eligible task — the plan is finished or fully blocked")
     if state.tasks.get(task.id) and state.tasks[task.id].status == DONE:
         return Outcome(task, DONE, "already done", 0.0)  # idempotent
-    outcome = run_task(driver, plan, task, state, root, profile_name, do_push=do_push)
+    outcome = run_task(
+        driver, plan, task, state, root, profile_name, config=config, do_push=do_push
+    )
     state_io.save(state, root)
     return outcome

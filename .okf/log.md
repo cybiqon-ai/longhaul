@@ -2,6 +2,35 @@
 
 ## 2026-08-30
 
+* **Creation**: [Supervision](/architecture/supervision.md) and
+  [Notifications](/architecture/notifications.md) — the last two roles v0.1 and
+  v0.2 needed before this is safe to leave on a cron. Ceilings (project, daily,
+  per-task, attempt budget), loop detection, `flock`, `longhaul kill`,
+  `.longhaul/config.yml`, and a Telegram notifier.
+
+  A ceiling reached returns **without calling the model at all**, asserted by a
+  test — a ceiling that reports after the spend is not a ceiling. `halted` is a
+  new status distinct from `failed`: failed is retryable, halted needs a human.
+
+* **Update**: The loop detector's first implementation normalised **every
+  number** out of an error before fingerprinting it, which made
+  `expected 1, got 2` and `expected 3, got 4` identical. An agent making genuine
+  progress across attempts would have been halted as though it were looping.
+  Caught by a test that deliberately used distinct failure strings. Bare digits
+  are no longer stripped; durations, timestamps, temp paths, addresses and git
+  SHAs still are. **Over-normalising is worse than under-normalising: a missed
+  loop costs one retry, a false loop costs the task.**
+
+* **Update**: An overlapping scheduled run exits **0**, not 1. Two orchestrators
+  sharing one `state.json` corrupt both, so the lock is essential — but a skipped
+  cron tick is normal operation and must not page anyone.
+
+* **Update**: A test asserting the shipped `templates/config.yml` matches the
+  code's defaults was first written comparing a value to itself, which is
+  coverage-shaped and proves nothing. Rewritten to compare the template against
+  `Config()`. A template that has drifted from the code is documentation that
+  lies.
+
 * **Creation**: [Shipping](/architecture/shipping.md) — Git Ops. After the gates
   and the build pass, the day's work is committed with a conventional message,
   pushed, and a pull request is opened. **Auto-merge does not exist.** The GitHub
