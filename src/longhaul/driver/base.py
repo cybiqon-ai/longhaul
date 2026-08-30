@@ -43,6 +43,9 @@ class AgentRequest:
     model: str | None = None
     max_turns: int | None = None
     timeout_s: int = 1800
+    #: Where to write the raw event stream. The transcript is what makes a
+    #: run auditable after the fact rather than a number in a ledger.
+    transcript_path: str | None = None
 
 
 class AgentDriver(Protocol):

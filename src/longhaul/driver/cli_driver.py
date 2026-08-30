@@ -5,10 +5,11 @@ Claude Code and authenticates it themselves, with `ANTHROPIC_API_KEY` or a token
 from `claude setup-token`; Longhaul only reads the environment. Anthropic's
 Agent SDK terms do not permit a third-party product to offer claude.ai login.
 
-Driving the CLI rather than the SDK also buys three things for free:
-`--output-format json` returns a `session_id` and `total_cost_usd`,
-`--json-schema` turns an agent's output into a validated contract, and the run
-bills against the user's own subscription.
+Output is read as `--output-format stream-json`, which gives everything the
+single-JSON form did — `session_id`, `total_cost_usd`, `structured_output` — and
+additionally the whole conversation, one event per line. That transcript is what
+makes a run auditable after the fact rather than a number in a ledger, and it is
+persisted verbatim so nothing is lost to a summariser.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from __future__ import annotations
 import json
 import subprocess
 import time
+from pathlib import Path
 from typing import Any
 
 from .base import AgentRequest, AgentResult
@@ -39,7 +41,7 @@ class CliDriver:
         self.bare = bare
 
     def _argv(self, req: AgentRequest) -> list[str]:
-        argv = [self.binary, "-p", req.prompt, "--output-format", "json"]
+        argv = [self.binary, "-p", req.prompt, "--output-format", "stream-json", "--verbose"]
         if self.bare:
             argv.append("--bare")
         # Deny anything not explicitly allowed. Never --dangerously-skip-permissions:
@@ -71,7 +73,9 @@ class CliDriver:
             )
         except FileNotFoundError as exc:
             raise ClaudeAuthError(f"{self.binary} is not on PATH") from exc
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as exc:
+            self._persist(request, (exc.stdout or b"").decode("utf-8", "replace")
+                          if isinstance(exc.stdout, bytes) else (exc.stdout or ""))
             return AgentResult(
                 ok=False,
                 text="",
@@ -81,20 +85,25 @@ class CliDriver:
             )
 
         elapsed = time.monotonic() - started
-        payload = self._parse(proc.stdout)
+        self._persist(request, proc.stdout)
+        events = self._events(proc.stdout)
+        payload = self._result_of(events)
 
         if payload is None:
-            # No parseable JSON means the run never really started. Exit code 0
+            # No result event means the run never really started. Exit code 0
             # here has historically been mistaken for success.
             return AgentResult(
                 ok=False,
-                text=proc.stdout.strip(),
+                text=proc.stdout.strip()[-2000:],
                 duration_s=elapsed,
                 exit_code=proc.returncode,
-                error=f"no JSON on stdout (exit {proc.returncode}): {proc.stderr.strip()[:400]}",
+                error=f"no result event (exit {proc.returncode}): {proc.stderr.strip()[:400]}",
+                raw_events=events,
             )
 
-        error = payload.get("error") or payload.get("subtype")
+        error = payload.get("error") or (
+            payload.get("subtype") if payload.get("subtype") != "success" else None
+        )
         if error in AUTH_FAILURES:
             raise ClaudeAuthError(f"claude is not authenticated: {error}")
 
@@ -108,15 +117,57 @@ class CliDriver:
             duration_s=elapsed,
             exit_code=proc.returncode,
             error=str(error) if is_error and error else None,
+            raw_events=events,
         )
 
     @staticmethod
-    def _parse(stdout: str) -> dict[str, Any] | None:
-        stdout = stdout.strip()
-        if not stdout:
-            return None
+    def _persist(request: AgentRequest, stdout: str) -> None:
+        """Write the transcript verbatim. Never let this break the run."""
+        if not request.transcript_path or not stdout:
+            return
         try:
-            parsed = json.loads(stdout)
-        except json.JSONDecodeError:
-            return None
-        return parsed if isinstance(parsed, dict) else None
+            path = Path(request.transcript_path)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(stdout, encoding="utf-8")
+        except OSError:
+            pass  # a full disk must not lose the work, only the record of it
+
+    @staticmethod
+    def _events(stdout: str) -> list[dict[str, Any]]:
+        """Every parseable line.
+
+        The CLI interleaves non-JSON lines — a stdin warning, for instance — so
+        an unparseable line is skipped rather than treated as the end of output.
+        """
+        events = []
+        for line in (stdout or "").splitlines():
+            line = line.strip()
+            if not line or not line.startswith("{"):
+                continue
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                events.append(parsed)
+        return events
+
+    @staticmethod
+    def _result_of(events: list[dict[str, Any]]) -> dict[str, Any] | None:
+        for event in reversed(events):
+            if event.get("type") == "result":
+                return event
+        return None
+
+    @staticmethod
+    def retries(events: list[dict[str, Any]]) -> list[str]:
+        """Transient API failures the CLI recovered from, for the ledger.
+
+        A run that succeeded after three 429s cost wall-clock that is otherwise
+        invisible, and a run that is retrying is not a run that is stuck.
+        """
+        return [
+            str(e.get("error"))
+            for e in events
+            if e.get("type") == "system" and e.get("subtype") == "api_retry"
+        ]

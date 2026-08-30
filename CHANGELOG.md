@@ -12,6 +12,24 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`325da33` feat(transcripts,registry): the data a real interface needs.**
+  Backend groundwork for a Next.js frontend with Home and Chats routes, done
+  first so nothing renders against mock data.
+  The driver now reads `--output-format stream-json`, which carries everything
+  the single-JSON form did — `session_id`, `total_cost_usd`, `structured_output`
+  — **and** the whole conversation. Verified against the real CLI rather than
+  assumed. Every run's raw event stream is persisted verbatim to
+  `.longhaul/runs/day-NN/<task>/<role>-<attempt>.jsonl`, so a ledger row saying
+  `$1.99` can be opened and read. `core/transcript.py` reshapes one into
+  messages, tool calls and results — redacted, and clipping huge tool output for
+  display while saying the full text is still on disk.
+  `core/registry.py` indexes the projects on this machine at
+  `~/.longhaul/projects.json`, so a home screen has something to list. It is a
+  convenience index and never a source of truth: a project whose directory has
+  gone is reported as missing rather than silently dropped, and a corrupt index
+  does not stop the tool working on the project you are standing in.
+  Also `longhaul projects` to list, add and forget.
+
 - **`48c001e` feat(ui): an application, not a report.** Rebuilt as a proper
   shell — sidebar navigation, top bar, dense sortable and filterable tables —
   after a Langfuse screenshot made clear the previous page read as a printout

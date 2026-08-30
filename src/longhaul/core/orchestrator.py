@@ -26,11 +26,22 @@ from ..gates.secrets import SecretsGate
 from ..schema.config import Config
 from ..schema.plan import Plan, Task
 from ..schema.state import DONE, FAILED, HALTED, IN_PROGRESS, PARKED, State, now
-from . import devops, gitops, supervisor, worktree
+from . import devops, gitops, supervisor, transcript, worktree
 from . import inspect as inspect_mod
 from . import state as state_io
 
 DEFAULT_MAX_ATTEMPTS = 3
+
+
+def CliDriverRetries(result) -> list[str]:  # noqa: N802 - reads as a helper
+    """Transient API failures the CLI recovered from, for the ledger.
+
+    A run that succeeded after three 429s cost wall-clock that is otherwise
+    invisible, and a run that is retrying is not a run that is stuck.
+    """
+    from ..driver.cli_driver import CliDriver
+
+    return CliDriver.retries(result.raw_events or [])
 
 #: The Coder writes code and runs the project's own tooling. It does not get
 #: network access or the ability to push; git operations belong to Git Ops.
@@ -106,6 +117,7 @@ def run_task(
     role = ROLE_FOR_KIND.get(task.kind, "coder")
     previous = ts.last_error if ts.attempts > 1 else None
     started = time.monotonic()
+    transcript_path = transcript.path_for(root, task.day, task.id, role, ts.attempts)
     result = driver.run(
         AgentRequest(
             prompt=_coder_prompt(plan, task, profile, previous),
@@ -114,8 +126,10 @@ def run_task(
             allowed_tools=CODER_TOOLS,
             append_system_prompt=roles.load(role),
             resume_session=ts.coder_session if previous else None,
+            transcript_path=str(transcript_path),
         )
     )
+    retries = CliDriverRetries(result)
     ts.coder_session = result.session_id or ts.coder_session
     ts.cost_usd += result.cost_usd
     state_io.append_ledger(
@@ -128,6 +142,8 @@ def run_task(
             "cost_usd": round(result.cost_usd, 4),
             "duration_s": round(time.monotonic() - started, 1),
             "ok": result.ok,
+            "retries": retries,
+            "transcript": str(transcript_path.relative_to(root)),
         },
         root,
     )

@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .. import profiles
 from ..schema.config import CONFIG_PATH
+from . import registry
 
 #: One copy, shipped as package data. A second copy at the repository root
 #: would drift from it, and a template that has drifted is documentation
@@ -129,4 +130,9 @@ def run(
     write_target(root, target, result)
     ensure_gitignore(root, result)
     write_schedule(root, schedule, profile, result)
+
+    # Index it so `longhaul ui` can list it from anywhere. The registry is a
+    # convenience, never a source of truth — the project's own .longhaul/ is.
+    project = registry.register(root)
+    result.created.append(f"registered as project '{project.id}'")
     return result

@@ -19,7 +19,7 @@ import yaml
 
 from . import __version__, doctor, profiles
 from .core import init as init_mod
-from .core import notify, orchestrator, planner, worktree
+from .core import notify, orchestrator, planner, registry, worktree
 from .core import rollback as rollback_mod
 from .core import state as state_io
 from .core.lock import AlreadyRunning, acquire
@@ -299,6 +299,34 @@ def cmd_rollback(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_projects(args: argparse.Namespace) -> int:
+    """List, add or forget the projects this machine knows about."""
+    if args.add:
+        project = registry.register(Path(args.add).resolve())
+        print(f"registered '{project.id}' → {project.path}")
+        return 0
+    if args.forget:
+        if registry.forget(args.forget):
+            print(f"forgot '{args.forget}' — the project itself is untouched")
+            return 0
+        print(f"no project called '{args.forget}'")
+        return 1
+
+    projects = registry.load().projects
+    if not projects:
+        print("no projects registered. Run `longhaul init` in one, or")
+        print("`longhaul projects --add <path>`.")
+        return 0
+    missing = 0
+    for project in projects:
+        mark = "·" if project.exists else "✗"
+        if not project.exists:
+            missing += 1
+        print(f"  {mark} {project.id:<22} {project.path}")
+    print(f"\nprojects: {len(projects)}  missing: {missing}")
+    return 0
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     """Serve the report live on localhost."""
     return ui_server.run(Path.cwd(), host=args.host, port=args.port)
@@ -452,6 +480,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="anything but localhost exposes source paths and agent output",
     )
     u.set_defaults(func=cmd_ui)
+
+    pj = sub.add_parser("projects", help="projects this machine knows about")
+    pj.add_argument("--add", metavar="PATH", help="register a directory")
+    pj.add_argument("--forget", metavar="ID", help="remove one from the index")
+    pj.set_defaults(func=cmd_projects)
 
     i = sub.add_parser("init", help="prepare a repository for longhaul")
     i.add_argument("--target", default="target.md", help="the target file to create or keep")
