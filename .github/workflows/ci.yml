@@ -1,0 +1,66 @@
+# Reports counts, not a status.
+#
+# A green check that ran zero tests is the failure mode this file exists to
+# prevent, so every job prints what it actually did.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check --output-format=concise . | tee ruff.out; echo "ruff findings: $(wc -l < ruff.out)"
+
+      - name: Test
+        run: pytest -v --junitxml=junit.xml
+
+      - name: Counts
+        if: always()
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET, pathlib, sys
+          p = pathlib.Path("junit.xml")
+          if not p.exists():
+              print("::error::no junit.xml — the suite did not run"); sys.exit(1)
+          r = ET.parse(p).getroot()
+          s = r if r.tag == "testsuite" else r.find("testsuite")
+          n = int(s.get("tests", 0)); f = int(s.get("failures", 0)); e = int(s.get("errors", 0))
+          k = int(s.get("skipped", 0))
+          print(f"tests: {n}  failures: {f}  errors: {e}  skipped: {k}")
+          if n == 0:
+              print("::error::0 tests ran. A suite that runs nothing is not a pass."); sys.exit(1)
+          PY
+
+  okf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install "pyyaml>=6"
+      - name: Validate the knowledge bundle
+        run: python3 tools/okf_validate.py .okf --strict

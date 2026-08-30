@@ -1,0 +1,59 @@
+---
+type: Concept
+title: Gates
+description: Deterministic diff checks that run before any push, with no model in the loop — the cheat detector is the only part of Longhaul's design that currently works.
+resource: https://github.com/cybiqon-ai/longhaul/tree/main/src/longhaul/gates
+tags: [architecture, gates, testing, safety, implemented]
+timestamp: 2026-08-30T00:00:00Z
+---
+
+# Overview
+
+A gate takes a diff and returns findings. It is deterministic and testable by
+handing it crafted input. **No model runs inside a gate.** A check that needs
+judgement belongs to the Reviewer role, where its opinion is advisory and logged
+rather than load-bearing — a gate that can be argued with is not a gate.
+
+`gates/base.py` defines `Finding`, `GateResult` and the `Gate` protocol.
+`GateResult.checked` carries how many files were actually examined, because an
+empty diff must not read as a pass.
+
+# The cheat detector
+
+`gates/cheat.py` is **built and tested** — the only component of the design that
+runs today. It exists because the dominant failure of a long-running coding agent
+is not writing bad code; it is making the *gate* pass rather than making the
+*code* work. It blocks, from the diff:
+
+- an added skip or ignore marker (`@pytest.mark.skip`, `it.only`, `@Ignore`,
+  `t.Skip`, `#[ignore]`, `xit`)
+- a removed test function in a test path
+- a change to a protected path — `.github/workflows/`, `.longhaul/config.yml`,
+  `.pre-commit-config.yaml`
+- an error swallowed silently, including the two-line `except Exception:` /
+  `pass` form and `continue-on-error: true`
+
+and warns on a change to a lint or typecheck config file, which must be confirmed
+to have got stricter rather than looser.
+
+# The two-line bug
+
+The first implementation matched swallowed errors with single-line regexes, so
+`except Exception:` followed by `pass` — the form people actually write — passed
+straight through. It was caught by the test suite on the first run. The fix pairs
+each added line with the next added line, and requires **both** to be additions,
+so a pre-existing handler is never flagged.
+
+Worth recording because it is the exact shape of failure the gate exists to
+catch: a check that reports success while examining nothing useful.
+
+# Not built
+
+`secrets`, `deps`, and the coverage and test-count ratchets are specified in
+`plan.md` and referenced by `profiles/flutter-android.yml`, but no code exists for
+them. The profile's `gates:` block is currently data nothing reads.
+
+# See also
+
+- [Longhaul](/product/overview.md) — what exists and what does not
+- [Agent roles](agent-roles.md) — the Reviewer, which is where judgement lives instead

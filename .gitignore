@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Longhaul's own working state when dogfooding in this repo.
+# .longhaul/ itself is meant to be COMMITTED in a target repo — that is the
+# whole point — but worktrees and raw run transcripts are not.
+.longhaul/worktrees/
+.longhaul/runs/
+
+.env
+*.local

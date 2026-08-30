@@ -1,0 +1,41 @@
+# Flutter + Flame, targeting Android.
+#
+# A profile tells the DevOps role what "build" and "test" mean for a stack, so it
+# never has to guess. Adding a profile is the easiest useful contribution to this
+# project — it is data, not code.
+name: flutter-android
+description: Flutter application built for Android, optionally with the Flame game engine.
+
+requires:
+  - flutter
+  - dart
+  - java
+  - adb
+
+commands:
+  install: flutter pub get
+  lint: flutter analyze
+  test: flutter test --reporter=json
+  build: flutter build apk --debug
+  # Longhaul reads the count, not the exit code.
+  test_count: "flutter test --reporter=json | grep -c '\"type\":\"testDone\"'"
+
+artifacts:
+  apk: build/app/outputs/flutter-apk/app-debug.apk
+
+proof:
+  kind: emulator_screenshot
+  # Boot, install, let it settle, grab a frame. The screenshot is then checked
+  # against the day's acceptance criteria and the design system.
+  steps:
+    - adb wait-for-device
+    - adb install -r {artifacts.apk}
+    - adb shell monkey -p {package} -c android.intent.category.LAUNCHER 1
+    - sleep 5
+    - adb exec-out screencap -p > {proof_dir}/screenshot.png
+
+gates:
+  coverage_ratchet: true
+  test_count_ratchet: true
+  cheat: true
+  secrets: true
