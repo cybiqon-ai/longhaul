@@ -105,3 +105,27 @@ def test_ordinary_code_passes():
 
 def test_reports_a_count():
     assert check("+x = 1").checked == 1
+
+
+def test_the_pragma_covers_the_line_after_it():
+    """A credential is often inside an expression the comment cannot share a
+    line with, so a preceding-line pragma has to work."""
+    diff = (
+        "--- a/tests/fixtures.py\n+++ b/tests/fixtures.py\n@@ -0,0 +1,2 @@\n"
+        "+    # longhaul: allow-secret — synthetic fixture\n"
+        f"+    url = 'https://user:{GH}@example.com/a/b.git'\n"
+    )
+    result = SecretsGate().check(diff)
+    assert not blocking(result)
+    assert [f.severity for f in result.findings] == ["warn"]
+
+
+def test_the_pragma_does_not_cover_two_lines_later():
+    """One line of cover, not a blanket."""
+    diff = (
+        "--- a/tests/fixtures.py\n+++ b/tests/fixtures.py\n@@ -0,0 +1,3 @@\n"
+        "+    # longhaul: allow-secret\n"
+        "+    unrelated = 1\n"
+        f"+    url = 'https://user:{GH}@example.com/a/b.git'\n"
+    )
+    assert blocking(SecretsGate().check(diff))

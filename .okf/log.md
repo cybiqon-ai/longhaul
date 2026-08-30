@@ -2,6 +2,32 @@
 
 ## 2026-08-30
 
+* **Creation**: [Shipping](/architecture/shipping.md) — Git Ops. After the gates
+  and the build pass, the day's work is committed with a conventional message,
+  pushed, and a pull request is opened. **Auto-merge does not exist.** The GitHub
+  client is stdlib `urllib`: no `requests`, no `gh` CLI, because this runs
+  unattended on machines the project does not control.
+
+  The part that matters is `verify_ci_started`. GitHub does not trigger workflows
+  on commits pushed with the default `GITHUB_TOKEN`, so a pipeline that pushes
+  with it gets green pull requests and a CI system that never ran — no error, no
+  warning. Longhaul asks every time whether a run exists for the SHA it pushed
+  and treats absence as a failure with a named cause, distinguishing it from a
+  repository that genuinely has no workflows. `wait_for_ci` also returns how many
+  jobs ran, because a run can conclude `success` having executed nothing — which
+  is exactly what happened to this repository on its first push.
+
+* **Update**: Git Ops is deterministic, like DevOps. A conventional commit
+  message is derivable from the task and its acceptance criteria; a model would
+  spend money to produce something less consistent.
+
+* **Update**: A test written as `assert "ghp_" not in msg or "example.com" in
+  msg` passed on its second clause **while the token was echoed in full** — and
+  the redaction it was meant to cover did not exist. A test with an `or` in its
+  assertion usually asserts nothing. `parse_remote` now redacts `user:token@host`
+  before any URL reaches an exception, because error strings reach logs, PR
+  bodies and Telegram, and the test is strict.
+
 * **Update**: The first live `longhaul run` found a **gate bypass**, and it was
   only found by running it — no unit test would have.
 

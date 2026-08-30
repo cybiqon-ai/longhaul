@@ -43,6 +43,10 @@ class TaskState:
     branch: str | None = None
     worktree: str | None = None
     base_sha: str | None = None
+    commit_sha: str | None = None
+    pr_number: int | None = None
+    pr_url: str | None = None
+    ci_run_id: int | None = None
     coder_session: str | None = None
     cost_usd: float = 0.0
     started_at: str | None = None
@@ -65,6 +69,10 @@ class TaskState:
             "branch": self.branch,
             "worktree": self.worktree,
             "base_sha": self.base_sha,
+            "commit_sha": self.commit_sha,
+            "pr_number": self.pr_number,
+            "pr_url": self.pr_url,
+            "ci_run_id": self.ci_run_id,
             "coder_session": self.coder_session,
             "cost_usd": round(self.cost_usd, 4),
             "started_at": self.started_at,

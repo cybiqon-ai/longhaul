@@ -23,7 +23,7 @@ from ..gates.cheat import CheatGate
 from ..gates.secrets import SecretsGate
 from ..schema.plan import Plan, Task
 from ..schema.state import DONE, FAILED, IN_PROGRESS, PARKED, State, now
-from . import devops, worktree
+from . import devops, gitops, worktree
 from . import state as state_io
 
 DEFAULT_MAX_ATTEMPTS = 3
@@ -72,6 +72,7 @@ def run_task(
     root: Path,
     profile_name: str | None = None,
     max_attempts: int = DEFAULT_MAX_ATTEMPTS,
+    do_push: bool = True,
 ) -> Outcome:
     ts = state.task(task.id)
     ts.day = task.day
@@ -144,11 +145,20 @@ def run_task(
             report=report,
         )
 
+    ship = gitops.ship(plan, task, tree.path, tree.branch, root, do_push=do_push)
+    ts.commit_sha = ship.sha
+    ts.pr_number = ship.pr_number
+    ts.pr_url = ship.pr_url
+    ts.ci_run_id = ship.ci_run_id
+    if not ship.ok:
+        return _fail(ts, task, f"nothing was committed: {ship.detail}",
+                     max_attempts, ts.cost_usd, report=report)
+
     ts.status = DONE
     ts.finished_at = now()
     ts.last_error = None
     ts.findings = []
-    return Outcome(task, DONE, report.summary(), ts.cost_usd, report)
+    return Outcome(task, DONE, f"{report.summary()} · {ship.detail}", ts.cost_usd, report)
 
 
 def _fail(ts, task, detail, max_attempts, cost, report=None, findings=None) -> Outcome:
@@ -194,12 +204,13 @@ def run_day(
     state: State,
     root: Path,
     profile_name: str | None = None,
+    do_push: bool = True,
 ) -> Outcome:
     task = next_task(plan, state)
     if task is None:
         return Outcome(None, "idle", "no eligible task — the plan is finished or fully blocked")
     if state.tasks.get(task.id) and state.tasks[task.id].status == DONE:
         return Outcome(task, DONE, "already done", 0.0)  # idempotent
-    outcome = run_task(driver, plan, task, state, root, profile_name)
+    outcome = run_task(driver, plan, task, state, root, profile_name, do_push=do_push)
     state_io.save(state, root)
     return outcome

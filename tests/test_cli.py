@@ -121,3 +121,10 @@ def test_status_counts_unstarted_tasks_as_pending(tmp_path, monkeypatch, capsys)
     }))
     assert main(["status"]) == 0
     assert "tasks: 2  done: 0  failed: 0  parked: 0  pending: 2" in capsys.readouterr().out
+
+
+def test_run_accepts_no_push():
+    parser = build_parser()
+    args = parser.parse_args(["run", "--no-push"])
+    assert args.no_push is True
+    assert parser.parse_args(["run"]).no_push is False

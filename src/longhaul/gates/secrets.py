@@ -87,17 +87,25 @@ class SecretsGate:
                     )
                 )
 
+            allowed_next = False
             for text, lineno in lines:
+                # The pragma covers its own line and the one after it: a
+                # credential is often inside a long expression the comment
+                # cannot share a line with.
                 if ALLOW.search(text):
                     result.findings.append(
                         Finding(
                             self.name,
                             "warn",
-                            "secret check suppressed on this line — confirm it is a fixture",
+                            "secret check suppressed here — confirm it is a fixture",
                             path,
                             lineno,
                         )
                     )
+                    allowed_next = True
+                    continue
+                if allowed_next:
+                    allowed_next = False
                     continue
                 for label, pattern in PATTERNS:
                     if pattern.search(text):

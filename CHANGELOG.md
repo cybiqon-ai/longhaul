@@ -12,6 +12,22 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`1c8c71e` feat(gitops): commit, push, open a PR — and prove CI actually
+  ran.** `core/gitops.py` plus a stdlib-`urllib` GitHub client. Conventional
+  commit derived from the task, PR body listing the acceptance criteria and which
+  gates ran, `--no-push` to stay local, PR links surfaced in `longhaul status`.
+  **Auto-merge does not exist.**
+  The load-bearing part is `verify_ci_started`: GitHub does not trigger workflows
+  on commits pushed with the default `GITHUB_TOKEN`, so a pipeline that pushes
+  with it gets green PRs and a CI system that never ran. Absence of a run is
+  treated as a failure with a named cause, distinguished from a repo that has no
+  workflows. `wait_for_ci` returns the job count too, because a run can conclude
+  `success` having executed nothing.
+  *Found while writing it:* a test written `assert "ghp_" not in msg or
+  "example.com" in msg` passed on its second clause while the token was echoed in
+  full — and the redaction it was supposed to cover did not exist. A test with an
+  `or` in its assertion usually asserts nothing. Both fixed.
+
 - **`dc3a033` feat(gates): scan every diff for credentials before anything is
   pushed.** `gates/secrets.py` blocks GitHub/Anthropic/OpenAI/AWS/Google/Slack/
   Stripe/Telegram tokens, private keys, credentials embedded in URLs, generic

@@ -47,11 +47,35 @@ so a pre-existing handler is never flagged.
 Worth recording because it is the exact shape of failure the gate exists to
 catch: a check that reports success while examining nothing useful.
 
+# The secrets gate
+
+`gates/secrets.py` is **built** and runs before every push, because push is the
+point of no return: rewriting history does not un-leak a token.
+
+Its own tests were the first thing it caught. The first version contained
+realistic credential literals and **GitHub push protection rejected the push** —
+correct, since a scanner's fixtures are the likeliest hiding place for a real
+secret. Every fixture is now assembled by concatenation, so no complete
+credential string exists in any source file.
+
+A `# longhaul: allow-secret` pragma exists for fixtures that legitimately need a
+credential shape. **Every use emits a warning** rather than being honoured
+silently: a suppression an agent can add invisibly is a suppression an agent
+will add invisibly.
+
+# Counted net, not gross
+
+Running `longhaul gate` over its own diff blocked a commit for removing three
+tests from a file that had been rewritten with more tests than it started with.
+Deletions are now counted against additions per file. Blocking a net-positive
+rewrite teaches an agent never to touch tests at all, which is the opposite of
+what this gate wants.
+
 # Not built
 
-`secrets`, `deps`, and the coverage and test-count ratchets are specified in
-`plan.md` and referenced by `profiles/flutter-android.yml`, but no code exists for
-them. The profile's `gates:` block is currently data nothing reads.
+`deps`, and the coverage and test-count ratchets, are specified in `plan.md` and
+referenced by `profiles/flutter-android.yml`, but no code exists for them. The
+profile's `gates:` block is still data nothing reads.
 
 # See also
 

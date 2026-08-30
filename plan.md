@@ -58,15 +58,17 @@ Coder writes code and DevOps verifies it, but nothing is committed or pushed.
 | `doctor` · `gate` · `plan` · `simulate` · `run` · `status` | ✅ |
 | `init` · `report` · `ui` · `rollback` · `kill` | — |
 | **Planner** | ✅ real 14-day plan, $0.72, committed as `examples/android-game/plan.yaml` |
-| **Orchestrator** | 🔨 selects, isolates, runs, records. No git operations yet |
+| **Orchestrator** | ✅ selects, isolates, runs, gates, builds, commits, pushes, opens a PR |
 | **Coder** | ✅ implements one task in a worktree, retries with the real error |
 | **DevOps/QA** | ✅ **deterministic, not an agent** — see the note under §DevOps below |
-| **Git Ops** · **Notifier** | — next slice |
+| **Git Ops** | ✅ conventional commit, push, PR, **and verifies a CI run actually started** |
+| **Notifier** | — next slice |
 | **Supervisor** | 🔨 retry budget and attempt counting only; no ceilings, no loop detection |
 | Designer · Assets · Reviewer · Scribe · Issues | — |
 | `plan.yaml` + `state.json` contracts | ✅ validated hard, 87 tests |
 | Cheat gate | ✅ runs before the build, blocks the task |
-| secrets · deps · coverage ratchet gates | — |
+| secrets gate | ✅ blocks before push; `# longhaul: allow-secret` pragma warns on every use |
+| deps · coverage ratchet gates | — |
 | Proof gate | — |
 
 **Changed from this plan while building it:**
@@ -88,6 +90,12 @@ Coder writes code and DevOps verifies it, but nothing is committed or pushed.
 5. **Creating a CI workflow is allowed; modifying one is not.** The blanket
    protected-path rule blocked a task whose acceptance criteria required writing
    CI. Adding a check is building the gate; changing one is lowering it.
+6. **Git Ops is deterministic too.** A conventional commit message is derivable
+   from the task and its acceptance criteria; a model would spend money to
+   produce something less consistent. Same reasoning as DevOps.
+7. **Deleted tests are counted net, not gross.** Blocking a rewrite that adds
+   more tests than it removes teaches an agent never to touch tests at all,
+   which is the opposite of the intent.
 
 ---
 
@@ -139,10 +147,10 @@ to answer").
 | Role | Responsibility | When |
 |---|---|---|
 | **Planner** ✅ | target.md → dependency-ordered day-sized task graph with acceptance criteria and risk flags | Once at init; re-invoked on re-plan |
-| **Orchestrator** 🔨 | Loads state + plan, picks today's task, dispatches, decides retry vs escalate | Daily |
+| **Orchestrator** ✅ | Loads state + plan, picks today's task, dispatches, decides retry vs escalate | Daily |
 | **Coder** ✅ | Implements today's task in an isolated worktree; writes code *and* tests | Per task |
 | **DevOps/QA** ✅ | Build, lint, typecheck, test — reports structured pass/fail with real errors. **Implemented deterministically rather than as an agent**: running the suite needs no judgement, and a model reporting on its own tests is the self-report this project removes | Per task |
-| **Git Ops** — | Worktree, conventional commit, push, open PR, link issue, merge only if opted in | Per task |
+| **Git Ops** ✅ | Worktree, conventional commit, push, open PR, and verify a CI run actually started. Deterministic, not an agent | Per task |
 | **Notifier** — | Telegram digest, failure alerts, decision requests | Every interesting transition |
 | **Supervisor** 🔨 | Wraps every agent call: retry budget, loop detection, cost/time ceilings, hard halt | Continuous |
 | **Designer** `v0.3` | Day-1 design system (palette, type scale, spacing, motion, tone) + per-screen specs. Later UI tasks are checked against it | Once, then per UI task |
@@ -297,7 +305,7 @@ per-task, per-day and per-project ceilings plus wall-clock caps in the
 Supervisor — not by asking the agent to police itself. `longhaul kill` stops
 everything; `.longhaul/ledger.jsonl` is the receipts.
 
-### 7. Repo citizenship — issues, PRs, README, docs, releases
+### 7. Repo citizenship — issues, PRs, README, docs, releases `🔨 PRs built; issues, CHANGELOG, releases not` `🔨 PRs built; issues, CHANGELOG, releases not`
 What you asked for, made concrete: an issue per planned task (so the tracker
 *is* the visible plan), closed by its PR; failures file bug issues; labels and
 milestones mirror plan milestones; CHANGELOG generated from conventional commits;
@@ -331,7 +339,7 @@ A single ambiguous decision should not stop a 14-day project. Park the task in a
 an ADR. Telegram commands `/status /pause /resume /approve /skip /logs`, with the
 notifier pluggable (Slack, Discord, webhook).
 
-### 12. Security gates
+### 12. Security gates `✅ secrets gate built; dependency audit not` `✅ secrets gate built; dependency audit not`
 Secret-scan every diff before push; dependency audit; always escalate changes to
 auth, payments, CI, infra credentials or anything matching a secret pattern.
 Non-negotiable for a tool that pushes unattended. A credential committed by an

@@ -171,7 +171,9 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     print(f"day {task.day}/{plan.target_days}  {task.id}  {task.title}")
     try:
-        outcome = orchestrator.run_day(CliDriver(), plan, state, root)
+        outcome = orchestrator.run_day(
+            CliDriver(), plan, state, root, do_push=not args.no_push
+        )
     except ClaudeAuthError as exc:
         print(f"\nclaude is not usable: {exc}")
         print("run `longhaul doctor` — an expired session can look like success.")
@@ -198,6 +200,8 @@ def cmd_status(args: argparse.Namespace) -> int:
         attempts = f"  (attempt {ts.attempts})" if ts and ts.attempts > 1 else ""
         icon = mark.get(status, "·")
         print(f"  {icon} day {task.day:>2}  {task.id:<4} {task.title[:56]}{attempts}")
+        if ts and ts.pr_url:
+            print(f"        PR #{ts.pr_number}  {ts.pr_url}")
         if ts and ts.status == FAILED and ts.last_error:
             print(f"        {ts.last_error.splitlines()[0][:70]}")
 
@@ -259,6 +263,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     r = sub.add_parser("run", help="run the next eligible task")
     r.add_argument("--dry-run", action="store_true", help="show the next task without running it")
+    r.add_argument("--no-push", action="store_true", help="commit locally, push nothing")
     r.set_defaults(func=cmd_run)
 
     st = sub.add_parser("status", help="show progress against the plan")
