@@ -55,8 +55,8 @@ Coder writes code and DevOps verifies it, but nothing is committed or pushed.
 
 | Piece | Status |
 |---|---|
-| `doctor` · `gate` · `plan` · `simulate` · `run` · `status` · `kill` | ✅ |
-| `init` · `report` · `ui` · `rollback` | — |
+| `doctor` · `gate` · `init` · `plan` · `simulate` · `run` · `status` · `report` · `rollback` · `kill` | ✅ |
+| `ui` | — |
 | **Planner** | ✅ real 14-day plan, $0.72, committed as `examples/android-game/plan.yaml` |
 | **Orchestrator** | ✅ selects, isolates, runs, gates, builds, commits, pushes, opens a PR |
 | **Coder** | ✅ implements one task in a worktree, retries with the real error |
@@ -328,7 +328,7 @@ build/test/lint/run/smoke commands and gate definitions, so DevOps never guesses
 at a stack. Users add their own; this is how Longhaul stays honest across
 languages, and it's the natural first contribution for an outsider.
 
-### 10. Worktrees, checkpoints, rollback `🔨 worktrees built; tags and rollback not`
+### 10. Worktrees, checkpoints, rollback `✅ BUILT` (Docker not)
 Each task runs in a `git worktree`, not just a branch, so a wedged day can't
 break the main checkout. Every completed day is a tag → `longhaul rollback day-7`.
 Optional Docker for full isolation.
@@ -468,8 +468,8 @@ confirmed `message_id` is also the only honest evidence a notification landed.
 
 Sized for 1–2 h/day. Each ends at something demonstrable.
 
-- **v0.1 — it does one day** 🔨 `doctor` ✅ · `gate` ✅ · `plan` ✅ · `simulate` ✅ ·
-  `run` ✅ · `status` ✅ · `init` — · `report` —.
+- **v0.1 — it does one day** ✅ `doctor` · `gate` · `init` · `plan` ·
+  `simulate` · `run` · `status` · `report`, all shipped.
   Planner ✅ → Coder ✅ → DevOps ✅ → GitOps —. State ✅, cost ledger ✅,
   worktrees ✅; PR-only, no auto-merge, Telegram notify-only and the manual
   trigger still to come. Full plan schema and role registry ship complete even

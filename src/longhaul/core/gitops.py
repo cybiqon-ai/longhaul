@@ -26,10 +26,29 @@ CI_START_GRACE_S = 90
 CI_POLL_INTERVAL_S = 15
 
 
+def tag_name(task_id: str) -> str:
+    return f"longhaul/done/{task_id}"
+
+
+def tag(worktree: Path, task_id: str, message: str) -> str | None:
+    """Mark a completed task so `longhaul rollback` has somewhere to go back to.
+
+    Annotated, so the tag carries who and when. Never overwrites an existing
+    tag: re-running a finished day must not silently move a checkpoint someone
+    may already have rolled back to.
+    """
+    name = tag_name(task_id)
+    if git("tag", "--list", name, cwd=worktree, check=False).strip():
+        return name
+    git("tag", "-a", name, "-m", message, cwd=worktree)
+    return name
+
+
 @dataclass
 class PushResult:
     committed: bool = False
     sha: str | None = None
+    tag: str | None = None
     pushed: bool = False
     pr_number: int | None = None
     pr_url: str | None = None
@@ -146,6 +165,8 @@ def ship(
     if not result.committed:
         result.detail = "nothing to commit"
         return result
+
+    result.tag = tag(worktree, task.id, f"day {task.day}: {task.title}")
 
     if not do_push:
         result.detail = f"committed {result.sha[:12]} on {branch} (not pushed)"

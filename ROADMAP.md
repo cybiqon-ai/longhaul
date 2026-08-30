@@ -5,8 +5,8 @@ The full reasoning behind this ordering is in [`plan.md`](plan.md).
 
 ## v0.1 — it does one day
 
-`doctor` ✅ · `gate` ✅ · `plan` ✅ · `simulate` ✅ · `run` ✅ · `status` ✅ ·
-`init` · `report`
+`doctor` ✅ · `gate` ✅ · `init` ✅ · `plan` ✅ · `simulate` ✅ · `run` ✅ ·
+`status` ✅ · `report` ✅
 
 Planner ✅ → Coder ✅ → DevOps ✅ → Git Ops ✅. State, cost ledger, git worktrees, PR-only,
 no auto-merge, Telegram notify-only, manual trigger.
@@ -19,8 +19,9 @@ the roles are unimplemented, so nothing downstream has to be rewritten later.
 Supervisor ✅ — bounded retries with the real error fed back, loop detection,
 cost ceilings, `flock` so a cron cannot overlap itself, and `longhaul kill`.
 The cheat and secrets gates ✅. Resume after crash ✅. Notifier ✅ (Telegram).
-Still to come: scheduling templates (cron, systemd, GitHub Actions) and
-`longhaul ui` live on `:4321`.
+Scheduling templates ✅ (cron, systemd, GitHub Actions, written by
+`longhaul init --schedule`). `longhaul rollback` ✅ with per-task checkpoints.
+Still to come: `longhaul ui` live on `:4321`.
 
 ## v0.3 — it makes something you can look at
 

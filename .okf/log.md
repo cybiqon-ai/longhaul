@@ -2,6 +2,27 @@
 
 ## 2026-08-30
 
+* **Creation**: [Operating a project](/architecture/operating.md) — `init`,
+  `report` and `rollback`, the three commands that make v0.1 usable by someone
+  other than its author, plus cron/systemd/GitHub Actions scheduling templates.
+  Every completed task now leaves an annotated git tag, which is what gives
+  `rollback` somewhere to go back to.
+
+* **Update**: Two counting bugs in `report`, both found by rendering the real
+  fourteen-day project rather than a fixture. It printed `tasks: 17` while the
+  buckets summed to 16 — an `in_progress` task belonged to no bucket at all. **A
+  summary whose parts do not add up to the whole is the failure this project is
+  named for.** Every status is now reported, with a parametrised test asserting
+  the counts reconcile against the task total. Separately, the page showed why a
+  task failed or halted but not why one was **parked** — and a parked task is
+  precisely the one a human has to act on.
+
+* **Update**: `longhaul rollback` is dry by default and needs `--apply`, refuses
+  day 1 (there is no checkpoint before the first day, and silently discarding a
+  repository is not a one-word operation), and never moves an existing tag —
+  re-running a finished day must not shift a checkpoint someone may already have
+  rolled back to.
+
 * **Update**: `longhaul kill` signalled the recorded pid only, which **orphans
   the agent**. Verified by spawning a parent with a child and sending SIGTERM to
   the parent alone: the child survives, reparented to init. For this tool that is

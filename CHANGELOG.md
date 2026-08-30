@@ -12,6 +12,16 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`91c97cb` feat(rollback): undo a day, with checkpoints to undo it to.**
+  Every completed task now leaves an annotated git tag, and `longhaul rollback N`
+  puts the repository back to the last checkpoint before day N, returning that
+  day's tasks and everything after to `pending` so the next run genuinely retries
+  them. Dry by default — `--apply` is required, because it is destructive by
+  definition. Rolling back day 1 is refused: there is no checkpoint before the
+  first day, and silently discarding a repository is not a one-word operation.
+  Tags are never moved, so re-running a finished day cannot shift a checkpoint
+  someone may already have rolled back to.
+
 - **`82bad72` feat(report): a self-contained HTML page from `.longhaul/`.**
   `longhaul report` writes one file with the CSS inlined and zero external
   resources, so it opens from `file://`, from a CI artifact, or on a machine that

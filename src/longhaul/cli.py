@@ -21,6 +21,7 @@ import yaml
 from . import __version__, doctor, profiles
 from .core import init as init_mod
 from .core import notify, orchestrator, planner, worktree
+from .core import rollback as rollback_mod
 from .core import state as state_io
 from .core.lock import AlreadyRunning, acquire
 from .driver.cli_driver import ClaudeAuthError, CliDriver
@@ -272,6 +273,39 @@ def cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_rollback(args: argparse.Namespace) -> int:
+    """Put the repository back the way it was before a given day.
+
+    Destructive by definition, so it describes and changes nothing unless you
+    pass --apply.
+    """
+    root = Path.cwd()
+    plan = _load_plan()
+    state = state_io.load(root)
+
+    result = rollback_mod.plan_rollback(plan, state, args.day, root)
+    for problem in result.problems:
+        print(f"  ✗ {problem}")
+    if not result.ok:
+        return 1
+
+    print(f"would reset to {result.target}"
+          f"{' (' + result.sha[:12] + ')' if result.sha else ''}")
+    print(f"tasks returned to pending: {len(result.tasks)}  "
+          f"checkpoints removed: {len(result.tags_removed)}")
+    for task_id in result.tasks:
+        print(f"  · {task_id}")
+
+    if not args.apply:
+        print("\nnothing was changed. Re-run with --apply to do it.")
+        return 0
+
+    rollback_mod.apply(result, state, root)
+    state_io.save(state, root)
+    print(f"\nreset to {result.target}. `longhaul run` will start again from day {args.day}.")
+    return 0
+
+
 def cmd_kill(args: argparse.Namespace) -> int:
     """Stop the run in progress — the whole process group, not just the parent.
 
@@ -408,6 +442,11 @@ def build_parser() -> argparse.ArgumentParser:
     rp.add_argument("--json", action="store_true", help="print the numbers instead")
     rp.set_defaults(func=cmd_report)
 
+    rb = sub.add_parser("rollback", help="undo a day and everything after it")
+    rb.add_argument("day", type=int, help="the day to roll back to the start of")
+    rb.add_argument("--apply", action="store_true", help="actually do it")
+    rb.set_defaults(func=cmd_rollback)
+
     i = sub.add_parser("init", help="prepare a repository for longhaul")
     i.add_argument("--target", default="target.md", help="the target file to create or keep")
     i.add_argument("--profile", default="flutter-android", help="project stack")
@@ -420,7 +459,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     planned = {
         "ui": "v0.2",
-        "rollback": "v0.2",
     }
     for name, version in planned.items():
         p = sub.add_parser(name, help=f"(planned, {version})")
