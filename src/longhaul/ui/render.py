@@ -17,6 +17,7 @@ from pathlib import Path
 
 from ..schema.plan import Plan
 from ..schema.state import DONE, FAILED, HALTED, IN_PROGRESS, PARKED, SKIPPED, State
+from .redact import redact
 
 ASSETS = Path(__file__).parent / "assets"
 
@@ -52,7 +53,9 @@ def _rows(plan: Plan, state: State) -> str:
         # PARKED belongs here as much as FAILED: a parked task is one waiting on
         # a human, so hiding its reason hides the only thing they need to read.
         if ts and ts.status in (FAILED, HALTED, PARKED) and ts.last_error:
-            first = ts.last_error.splitlines()[0]
+            # Agent output reaches the page verbatim, and report.html gets
+            # committed, attached to issues and screenshotted.
+            first = redact(ts.last_error).splitlines()[0]
             extra += f'<div class="why">{_esc(first[:200])}</div>'
         attempts = (
             f" · attempt {ts.attempts}" if ts and ts.attempts > 1 else ""
@@ -71,10 +74,10 @@ def _rows(plan: Plan, state: State) -> str:
     return "\n".join(out)
 
 
-def render(plan: Plan, state: State, ledger: list[dict] | None = None) -> str:
+def render_main(plan: Plan, state: State, ledger: list[dict] | None = None) -> str:
+    """The <main> content, so the live server can swap it without a reload."""
     counts = _counts(plan, state)
     ledger = ledger or []
-    css = (ASSETS / "report.css").read_text(encoding="utf-8")
 
     tiles = [
         ("done", counts[DONE]), ("failed", counts[FAILED]),
@@ -91,12 +94,7 @@ def render(plan: Plan, state: State, ledger: list[dict] | None = None) -> str:
     risks = "".join(f"<li>{_esc(r)}</li>" for r in plan.risk_flags)
     risk_block = f"<h2>Risk flags</h2><ul class='crit'>{risks}</ul>" if risks else ""
 
-    return f"""<!doctype html>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{_esc(plan.project)} — Longhaul</title>
-<style>{css}</style>
-<main>
+    return f"""<main>
   <h1>{_esc(plan.project)}</h1>
   <p class="sub">{_esc(counts[DONE])} of {_esc(len(plan.tasks))} tasks ·
      {_esc(plan.target_days)} days · <code>{_esc(plan.profile)}</code></p>
@@ -114,6 +112,23 @@ def render(plan: Plan, state: State, ledger: list[dict] | None = None) -> str:
   </footer>
 </main>
 """
+
+
+def render(
+    plan: Plan, state: State, ledger: list[dict] | None = None, live: bool = False
+) -> str:
+    """The whole page. `live` adds the reconnecting update listener."""
+    css = (ASSETS / "report.css").read_text(encoding="utf-8")
+    script = f"<script>{(ASSETS / 'live.js').read_text(encoding='utf-8')}</script>" if live else ""
+    return (
+        "<!doctype html>\n"
+        '<meta charset="utf-8">\n'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        f"<title>{_esc(plan.project)} — Longhaul</title>\n"
+        f"<style>{css}</style>\n"
+        f"{render_main(plan, state, ledger)}"
+        f"{script}"
+    )
 
 
 def write(plan: Plan, state: State, out: Path, ledger: list[dict] | None = None) -> Path:

@@ -1,8 +1,7 @@
 """The `longhaul` command.
 
-Working today: `doctor`, `gate`, `plan`, `simulate`, `run`, `status`, `kill`.
-Still declared but unimplemented — `init`, `report`, `ui`, `rollback` — so the
-shape of the tool is visible; those exit 2 with a pointer to the roadmap.
+Every command in v0.1 and v0.2 is implemented: `doctor`, `gate`, `init`, `plan`,
+`simulate`, `run`, `status`, `report`, `ui`, `rollback`, `kill`.
 
 See plan.md for the design, with live build-status markers, and ROADMAP.md for
 what lands when.
@@ -31,14 +30,7 @@ from .schema.config import Config
 from .schema.plan import Plan, PlanError
 from .schema.state import DONE, FAILED, HALTED, PARKED
 from .ui import render as ui_render
-
-NOT_YET = 2
-
-
-def _unimplemented(name: str, version: str) -> int:
-    print(f"`longhaul {name}` is not implemented yet — planned for {version}.")
-    print("See ROADMAP.md. This is a pre-alpha scaffold; nothing ships work yet.")
-    return NOT_YET
+from .ui import server as ui_server
 
 
 def cmd_doctor(args: argparse.Namespace) -> int:
@@ -306,6 +298,11 @@ def cmd_rollback(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ui(args: argparse.Namespace) -> int:
+    """Serve the report live on localhost."""
+    return ui_server.run(Path.cwd(), host=args.host, port=args.port)
+
+
 def cmd_kill(args: argparse.Namespace) -> int:
     """Stop the run in progress — the whole process group, not just the parent.
 
@@ -447,6 +444,14 @@ def build_parser() -> argparse.ArgumentParser:
     rb.add_argument("--apply", action="store_true", help="actually do it")
     rb.set_defaults(func=cmd_rollback)
 
+    u = sub.add_parser("ui", help="serve the report live on localhost")
+    u.add_argument("--port", type=int, default=ui_server.DEFAULT_PORT)
+    u.add_argument(
+        "--host", default="127.0.0.1",
+        help="anything but localhost exposes source paths and agent output",
+    )
+    u.set_defaults(func=cmd_ui)
+
     i = sub.add_parser("init", help="prepare a repository for longhaul")
     i.add_argument("--target", default="target.md", help="the target file to create or keep")
     i.add_argument("--profile", default="flutter-android", help="project stack")
@@ -456,13 +461,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     i.add_argument("--quick", action="store_true", help="skip the round-trip to Claude")
     i.set_defaults(func=cmd_init)
-
-    planned = {
-        "ui": "v0.2",
-    }
-    for name, version in planned.items():
-        p = sub.add_parser(name, help=f"(planned, {version})")
-        p.set_defaults(func=lambda _a, n=name, v=version: _unimplemented(n, v))
 
     return parser
 

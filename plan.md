@@ -55,8 +55,7 @@ Coder writes code and DevOps verifies it, but nothing is committed or pushed.
 
 | Piece | Status |
 |---|---|
-| `doctor` · `gate` · `init` · `plan` · `simulate` · `run` · `status` · `report` · `rollback` · `kill` | ✅ |
-| `ui` | — |
+| Every command: `doctor` `gate` `init` `plan` `simulate` `run` `status` `report` `ui` `rollback` `kill` | ✅ |
 | **Planner** | ✅ real 14-day plan, $0.72, committed as `examples/android-game/plan.yaml` |
 | **Orchestrator** | ✅ selects, isolates, runs, gates, builds, commits, pushes, opens a PR |
 | **Coder** | ✅ implements one task in a worktree, retries with the real error |
@@ -412,10 +411,16 @@ Python package stays `pyyaml`-only.
 
 ### Staging
 
-`report` lands in **v0.1** because it is the debugging surface — a static
-timeline is worth more early than late. `ui` with SSE lands in **v0.2**.
+`report` ✅ landed in **v0.1** because it is the debugging surface — a static
+timeline is worth more early than late. `ui` with SSE ✅ landed in **v0.2**.
 Interactive actions land in **v0.4**, alongside the Telegram commands they share
 a command layer with. Plan editing lands in **v0.5** with velocity.
+
+**Built so far:** Today/Timeline/Plan/Spend are one view — the task table with
+per-status counts, acceptance criteria, failure and parking reasons, and PR
+links — served live over SSE and also writable as a standalone file. The proof
+gallery waits on the Proof gate in v0.3; Needs-you actions wait on the shared
+command layer in v0.4.
 
 ---
 
@@ -474,9 +479,10 @@ Sized for 1–2 h/day. Each ends at something demonstrable.
   worktrees ✅; PR-only, no auto-merge, Telegram notify-only and the manual
   trigger still to come. Full plan schema and role registry ship complete even
   though half the roles are unimplemented ✅.
-- **v0.2 — it does many days unattended** Supervisor (retry with real error
-  feedback, loop detection, ceilings), the cheat-detector gates, scheduling (cron
-  + systemd + GitHub Actions template), resume-after-crash, **`ui` live on :4321**.
+- **v0.2 — it does many days unattended** ✅ Supervisor (retry with real error
+  feedback, loop detection, ceilings), the cheat and secrets gates, scheduling
+  (cron + systemd + GitHub Actions templates), resume-after-crash, `ui` live on
+  :4321, `rollback`. All shipped.
 - **v0.3 — it makes something you can look at** Designer, design system, asset
   pipeline, the Proof gate (emulator + screenshot + vision check), profiles,
   **the proof gallery**.

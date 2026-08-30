@@ -12,6 +12,30 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`66d0b72` feat(ui): the report, live on localhost.** `longhaul ui` serves it
+  from stdlib `http.server` on `:4321` with SSE — no framework, no build step,
+  still one runtime dependency. The server watches `.longhaul/` and pushes; the
+  browser never polls, and swaps the `<main>` body rather than reloading so
+  scroll position survives. `/api/summary` returns the same numbers as JSON.
+  Localhost only, `X-Frame-Options: DENY`, and an explicit warning if you bind
+  elsewhere.
+  Credentials are redacted before anything reaches a browser, **reusing the
+  secrets gate's own patterns** rather than a second list — agent output reaches
+  the page verbatim, and `report.html` is a file people commit and screenshot.
+  *Found immediately on the first real run:* port 4321 was already held by an
+  unrelated dev server and `ui` crashed with a raw `OSError` traceback. It is
+  also Astro's default port, so this is normal rather than exceptional; it now
+  names the port and suggests `--port`.
+  *Also found, by running `longhaul gate` on this diff:* the cheat gate treated
+  a comment as a swallowed-error body, so `except PortInUse: # explanation` +
+  real handling was blocked. Flagging that teaches an agent to stop writing
+  comments, which is the opposite of the intent. It now looks past comments to
+  the first line that actually does something — while a handler whose *entire*
+  body is a comment still blocks, because that is an explanation standing in for
+  handling.
+  This completes v0.2 — every command in the roadmap through v0.2 now ships, and
+  the placeholder machinery that made unimplemented commands exit 2 is gone.
+
 - **`91c97cb` feat(rollback): undo a day, with checkpoints to undo it to.**
   Every completed task now leaves an annotated git tag, and `longhaul rollback N`
   puts the repository back to the last checkpoint before day N, returning that

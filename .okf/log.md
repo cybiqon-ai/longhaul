@@ -2,6 +2,24 @@
 
 ## 2026-08-30
 
+* **Update**: [The dashboard](/architecture/dashboard.md) is **built**, which
+  completes v0.2. `longhaul ui` serves the report on :4321 from stdlib
+  `http.server` — no framework, no build step, one dependency still — with live
+  updates over SSE. The server watches `.longhaul/` and pushes; the browser never
+  polls, and swaps the `<main>` body rather than reloading, so scroll position
+  survives.
+
+  Credentials are redacted before anything reaches a browser, reusing the
+  **secrets gate's own patterns** rather than a second list — a pattern added
+  for the gate now protects the UI too. Agent output reaches the page verbatim
+  and `report.html` is a file people commit and screenshot.
+
+* **Update**: `longhaul ui` crashed with a raw `OSError` traceback when the port
+  was taken — found immediately, because 4321 was already held by an unrelated
+  dev server on this machine. It is also Astro's default port, so this is a
+  normal thing for a user to hit rather than an exceptional one. It now names the
+  port and suggests `--port`.
+
 * **Creation**: [Operating a project](/architecture/operating.md) — `init`,
   `report` and `rollback`, the three commands that make v0.1 usable by someone
   other than its author, plus cron/systemd/GitHub Actions scheduling templates.

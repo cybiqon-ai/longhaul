@@ -79,9 +79,15 @@ SWALLOWED_OPENERS = (
 SWALLOWED_BODIES = (
     re.compile(r"^\s*pass\s*$"),
     re.compile(r"^\s*\}\s*$"),
-    re.compile(r"^\s*(#|//).*$"),  # a comment where handling should be
     re.compile(r"^\s*end\s*$"),
 )
+
+#: Comments are skipped when looking for the handler's body. An explanatory
+#: comment inside an `except` is good practice, and flagging it taught nothing
+#: except to stop writing comments — `except X:` followed by a comment and then
+#: real handling is not a swallowed error. What matters is the first line that
+#: actually does something.
+COMMENT_ONLY = re.compile(r"^\s*(#|//|\*|\"\"\"|\'\'\')")
 
 TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec)/|(_test|\.test|\.spec|_spec)\.[a-z]+$")
 TEST_FUNC = re.compile(r"^\s*(def test_|async def test_|func Test|it\(|test\(|void test)")
@@ -130,6 +136,23 @@ def _removed_by_file(diff: str) -> dict[str, list[str]]:
     return removed
 
 
+def _next_statement(lines: list[tuple[str, int]], start: int) -> tuple[str, bool]:
+    """(next real added line, whether only comments stood before it).
+
+    Both halves matter. A comment *followed by* handling is fine; a handler
+    whose entire body is a comment is a swallowed error wearing an explanation.
+    """
+    saw_comment = False
+    for text, _lineno in lines[start:]:
+        if not text.strip():
+            continue
+        if COMMENT_ONLY.match(text):
+            saw_comment = True
+            continue
+        return text, saw_comment
+    return "", saw_comment
+
+
 class CheatGate:
     name = "cheat"
 
@@ -169,10 +192,13 @@ class CheatGate:
 
                 swallowed = any(p.search(text) for p in SWALLOWED_ERROR)
                 if not swallowed and any(p.match(text) for p in SWALLOWED_OPENERS):
-                    following = lines[index + 1][0] if index + 1 < len(lines) else ""
-                    swallowed = bool(following) and any(
-                        p.match(following) for p in SWALLOWED_BODIES
-                    )
+                    following, saw_comment = _next_statement(lines, index + 1)
+                    if following:
+                        swallowed = any(p.match(following) for p in SWALLOWED_BODIES)
+                    else:
+                        # Nothing but comments after the opener: the explanation
+                        # is the whole handler.
+                        swallowed = saw_comment
                 if swallowed:
                     result.findings.append(
                         Finding(

@@ -3,7 +3,7 @@
 Sized for 1–2 focused hours a day. Each version ends at something demonstrable.
 The full reasoning behind this ordering is in [`plan.md`](plan.md).
 
-## v0.1 — it does one day
+## v0.1 — it does one day ✅
 
 `doctor` ✅ · `gate` ✅ · `init` ✅ · `plan` ✅ · `simulate` ✅ · `run` ✅ ·
 `status` ✅ · `report` ✅
@@ -14,14 +14,15 @@ no auto-merge, Telegram notify-only, manual trigger.
 The full plan schema and role registry ship **complete** in v0.1 even though half
 the roles are unimplemented, so nothing downstream has to be rewritten later.
 
-## v0.2 — it does many days unattended
+## v0.2 — it does many days unattended ✅
 
 Supervisor ✅ — bounded retries with the real error fed back, loop detection,
 cost ceilings, `flock` so a cron cannot overlap itself, and `longhaul kill`.
 The cheat and secrets gates ✅. Resume after crash ✅. Notifier ✅ (Telegram).
 Scheduling templates ✅ (cron, systemd, GitHub Actions, written by
 `longhaul init --schedule`). `longhaul rollback` ✅ with per-task checkpoints.
-Still to come: `longhaul ui` live on `:4321`.
+`longhaul ui` ✅ — the report served live on `:4321` over SSE, localhost-only,
+with credentials redacted before anything reaches a browser.
 
 ## v0.3 — it makes something you can look at
 

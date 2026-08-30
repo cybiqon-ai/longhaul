@@ -9,9 +9,15 @@ def test_version_flag():
     assert exc.value.code == 0
 
 
-def test_planned_commands_exit_two(capsys):
-    assert main(["ui"]) == 2
-    assert "not implemented yet" in capsys.readouterr().out
+def test_every_declared_command_is_implemented():
+    """No placeholders left: a command in --help that exits 2 is a promise the
+    tool does not keep."""
+    parser = build_parser()
+    choices = [a for a in parser._actions if a.dest == "command"][0].choices
+    for name, sub in choices.items():
+        func = sub.get_default("func")
+        assert func is not None, f"{name} has no implementation"
+        assert getattr(func, "__name__", "") != "<lambda>", f"{name} is a placeholder"
 
 
 def test_every_planned_command_is_registered():

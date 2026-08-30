@@ -62,10 +62,10 @@ worktree, gated, built and tested, with state written atomically so a killed run
 resumes rather than restarts.
 
 ```bash
-longhaul doctor
-longhaul plan --target target.md --days 14 --profile flutter-android
-longhaul run
-longhaul status
+longhaul init --profile flutter-android   # config, target skeleton, doctor
+longhaul plan --days 14                   # a real dependency-ordered plan
+longhaul run                              # one day's work, gated and tested
+longhaul ui                               # watch it on localhost:4321
 ```
 
 It does **not** yet commit, push, or open a PR — Git Ops, the Notifier, and the

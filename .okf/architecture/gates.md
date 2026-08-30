@@ -63,6 +63,16 @@ credential shape. **Every use emits a warning** rather than being honoured
 silently: a suppression an agent can add invisibly is a suppression an agent
 will add invisibly.
 
+# Comments are not a swallowed error
+
+The gate first treated any comment after an `except` as the handler's body, so
+`except PortInUse as exc:` followed by an explanatory comment and then real
+handling was blocked — caught by running `longhaul gate` over the UI commit.
+Flagging that teaches an agent to stop writing comments, which is the opposite
+of what the gate wants. It now looks past comments to the first line that
+actually does something. A handler whose **entire** body is a comment still
+blocks: that is an explanation standing in for handling.
+
 # Counted net, not gross
 
 Running `longhaul gate` over its own diff blocked a commit for removing three

@@ -204,3 +204,32 @@ def test_a_net_reduction_still_blocks():
 +    assert 1
 """
     assert blocking(check(diff))
+
+
+def test_a_comment_inside_a_handler_is_not_a_swallowed_error():
+    """Flagging this taught nothing except to stop writing comments. What
+    matters is the first line that actually does something."""
+    diff = """--- a/src/server.py
++++ b/src/server.py
+@@ -1,2 +1,5 @@
+     try:
+         serve()
++    except PortInUse as exc:
++        # 4321 is also Astro's default, so this is normal rather than a crash
++        print(f"cannot start: {exc}")
++        return 1
+"""
+    assert not blocking(check(diff)), [str(f) for f in check(diff).findings]
+
+
+def test_a_comment_standing_in_for_handling_is_still_caught():
+    diff = """--- a/src/server.py
++++ b/src/server.py
+@@ -1,2 +1,4 @@
+     try:
+         serve()
++    except Exception:
++        # TODO: deal with this later
++        pass
+"""
+    assert blocking(check(diff))
