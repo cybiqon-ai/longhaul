@@ -36,11 +36,16 @@ Created 30 Aug 2026. As of that date the repository contains:
   it reads a target file, plans N days, and writes a validated `plan.yaml`.
 - `src/longhaul/profiles/` — one profile, loaded and summarised into the
   Planner's prompt.
-- 56 passing tests, ruff clean, CI green.
+- `src/longhaul/core/{orchestrator,state,worktree,devops}.py` + `roles/coder.md`
+  — **the day loop**: pick a task, isolate it in a git worktree, let the Coder
+  implement it, gate the diff, build and test it, record state atomically.
+  `longhaul run` and `longhaul status`.
+- 87 passing tests, ruff clean, CI green.
 
-**No orchestrator exists, and nothing has ever executed a day's work.** The
-Planner produces a plan; nothing yet consumes one. The other eleven roles named
-in `plan.md` are specifications.
+**Nothing is committed or pushed yet.** The loop runs a task and stops before
+git: Git Ops and the Notifier do not exist, and the Supervisor enforces only an
+attempt budget — no cost or wall-clock ceilings, no loop detection. Eight of the
+twelve roles in `plan.md` are still specifications.
 
 # Why it is unusual
 

@@ -57,17 +57,21 @@ $ longhaul run
 
 ## Status
 
-**Pre-alpha.** The Planner works: point it at a target file and it produces a
-validated, dependency-ordered day-by-day plan.
+**Pre-alpha.** It plans a project and it runs a day's work — in an isolated
+worktree, gated, built and tested, with state written atomically so a killed run
+resumes rather than restarts.
 
 ```bash
 longhaul doctor
-longhaul simulate --target target.md --days 14 --profile flutter-android
+longhaul plan --target target.md --days 14 --profile flutter-android
+longhaul run
+longhaul status
 ```
 
-Nothing yet *executes* that plan — there is no orchestrator, and the Coder,
-DevOps and Git Ops roles are not built. See [`plan.md`](plan.md) for the full
-design and [`ROADMAP.md`](ROADMAP.md) for what lands when.
+It does **not** yet commit, push, or open a PR — Git Ops, the Notifier, and the
+Supervisor's cost and wall-clock ceilings are the next slice. See
+[`plan.md`](plan.md) for the design, with live build-status markers, and
+[`ROADMAP.md`](ROADMAP.md) for what lands when.
 
 Watch it, don't depend on it.
 

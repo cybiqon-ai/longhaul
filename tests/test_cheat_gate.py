@@ -138,3 +138,39 @@ def test_blocks_a_comment_where_handling_should_be():
 +        # TODO: handle this later
 """
     assert blocking(check(diff))
+
+
+def test_creating_a_ci_workflow_is_allowed():
+    """A task whose acceptance criteria say "CI ships an APK" must be able to
+    write one. Adding a check is building the gate, not lowering it."""
+    diff = """--- /dev/null
++++ b/.github/workflows/ci.yml
+@@ -0,0 +1,4 @@
++name: CI
++on: [push]
++jobs:
++  test: {runs-on: ubuntu-latest}
+"""
+    assert not blocking(check(diff)), [str(f) for f in check(diff).findings]
+
+
+def test_modifying_an_existing_ci_workflow_still_blocks():
+    diff = """--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -10,3 +10,3 @@
+-      - run: pytest
++      - run: pytest || true
+"""
+    assert blocking(check(diff))
+
+
+def test_a_new_workflow_that_disables_itself_is_still_caught():
+    """Creating is allowed; creating something already toothless is not."""
+    diff = """--- /dev/null
++++ b/.github/workflows/ci.yml
+@@ -0,0 +1,3 @@
++name: CI
++jobs:
++    continue-on-error: true
+"""
+    assert blocking(check(diff))

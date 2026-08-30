@@ -15,10 +15,12 @@ from pathlib import Path
 import yaml
 
 from . import __version__, doctor, profiles
-from .core import planner
+from .core import orchestrator, planner, worktree
+from .core import state as state_io
 from .driver.cli_driver import ClaudeAuthError, CliDriver
 from .gates.cheat import CheatGate
 from .schema.plan import Plan, PlanError
+from .schema.state import DONE, FAILED, PARKED
 
 NOT_YET = 2
 
@@ -125,6 +127,87 @@ def cmd_simulate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _load_plan() -> Plan:
+    path = Path(planner.PLAN_PATH)
+    if not path.is_file():
+        print(f"no plan at {path} — run `longhaul plan` first.")
+        raise SystemExit(1)
+    try:
+        return Plan.from_dict(yaml.safe_load(path.read_text(encoding="utf-8")))
+    except PlanError as exc:
+        print(f"{path} is not a usable plan:")
+        for problem in exc.problems:
+            print(f"  ✗ {problem}")
+        raise SystemExit(1) from exc
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    if not worktree.is_repo(root):
+        print("not a git repository — longhaul works in worktrees, so it needs one.")
+        return 1
+
+    plan = _load_plan()
+    state = state_io.load(root)
+    state.project = state.project or plan.project
+
+    task = orchestrator.next_task(plan, state)
+    if task is None:
+        counts = state.counts()
+        print("nothing eligible to run.")
+        print(f"  done: {counts['done']}  parked: {counts['parked']}  failed: {counts['failed']}")
+        return 0
+    if args.dry_run:
+        print(f"next: day {task.day}  {task.id}  {task.title}")
+        for c in task.acceptance_criteria:
+            print(f"  · {c}")
+        print("\nnothing was run (--dry-run)")
+        return 0
+
+    print(f"day {task.day}/{plan.target_days}  {task.id}  {task.title}")
+    try:
+        outcome = orchestrator.run_day(CliDriver(), plan, state, root)
+    except ClaudeAuthError as exc:
+        print(f"\nclaude is not usable: {exc}")
+        print("run `longhaul doctor` — an expired session can look like success.")
+        return 1
+
+    print(f"\n{outcome.status}: {outcome.detail}")
+    counts = state.counts()
+    print(
+        f"\ntasks: {len(plan.tasks)}  done: {counts['done']}  failed: {counts['failed']}  "
+        f"parked: {counts['parked']}  spent: ${state.total_cost_usd:.2f}"
+    )
+    return outcome.exit_code
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    plan = _load_plan()
+    state = state_io.load(Path.cwd())
+    mark = {DONE: "✓", FAILED: "✗", PARKED: "?"}
+
+    print(f"{plan.project}  ·  {plan.profile}")
+    for task in sorted(plan.tasks, key=lambda t: (t.day, t.id)):
+        ts = state.tasks.get(task.id)
+        status = ts.status if ts else "pending"
+        attempts = f"  (attempt {ts.attempts})" if ts and ts.attempts > 1 else ""
+        icon = mark.get(status, "·")
+        print(f"  {icon} day {task.day:>2}  {task.id:<4} {task.title[:56]}{attempts}")
+        if ts and ts.status == FAILED and ts.last_error:
+            print(f"        {ts.last_error.splitlines()[0][:70]}")
+
+    counts = state.counts()
+    # A task the plan names but state has never seen is pending, not invisible.
+    counts["pending"] += sum(1 for t in plan.tasks if t.id not in state.tasks)
+    ledger = state_io.read_ledger(Path.cwd())
+    print(
+        f"\ntasks: {len(plan.tasks)}  done: {counts['done']}  failed: {counts['failed']}  "
+        f"parked: {counts['parked']}  pending: {counts['pending']}"
+    )
+    print(f"agent calls: {len(ledger)}  spent: ${state.total_cost_usd:.2f}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="longhaul",
@@ -169,10 +252,15 @@ def build_parser() -> argparse.ArgumentParser:
             )
             c.set_defaults(func=cmd_simulate)
 
+    r = sub.add_parser("run", help="run the next eligible task")
+    r.add_argument("--dry-run", action="store_true", help="show the next task without running it")
+    r.set_defaults(func=cmd_run)
+
+    st = sub.add_parser("status", help="show progress against the plan")
+    st.set_defaults(func=cmd_status)
+
     planned = {
         "init": "v0.1",
-        "run": "v0.1",
-        "status": "v0.1",
         "report": "v0.1",
         "ui": "v0.2",
         "rollback": "v0.2",

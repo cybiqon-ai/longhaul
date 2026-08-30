@@ -10,7 +10,7 @@ def test_version_flag():
 
 
 def test_planned_commands_exit_two(capsys):
-    assert main(["run"]) == 2
+    assert main(["report"]) == 2
     assert "not implemented yet" in capsys.readouterr().out
 
 
@@ -18,7 +18,7 @@ def test_every_planned_command_is_registered():
     parser = build_parser()
     actions = [a for a in parser._actions if a.dest == "command"]
     names = set(actions[0].choices)
-    assert {"doctor", "gate", "init", "plan", "run", "report", "ui"} <= names
+    assert {"doctor", "gate", "init", "plan", "run", "status", "report", "ui"} <= names
 
 
 def test_gate_command_blocks_a_cheating_diff(tmp_path, capsys):
@@ -84,3 +84,40 @@ def test_plan_refuses_to_clobber_an_existing_plan(tmp_path, monkeypatch, capsys)
     (tmp_path / "target.md").write_text("# x\n")
     assert main(["plan"]) == 1
     assert "--force" in capsys.readouterr().out
+
+
+def test_run_refuses_outside_a_git_repository(tmp_path, monkeypatch, capsys):
+    """Work happens in worktrees, so there has to be a repo to make one from."""
+    monkeypatch.chdir(tmp_path)
+    assert main(["run"]) == 1
+    assert "not a git repository" in capsys.readouterr().out
+
+
+def test_run_without_a_plan_says_so(tmp_path, monkeypatch, capsys):
+    import subprocess
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(SystemExit) as exc:
+        main(["run"])
+    assert exc.value.code == 1
+    assert "run `longhaul plan` first" in capsys.readouterr().out
+
+
+def test_status_counts_unstarted_tasks_as_pending(tmp_path, monkeypatch, capsys):
+    """A task the plan names but state has never seen is pending, not invisible."""
+    import subprocess
+
+    import yaml
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / ".longhaul").mkdir()
+    (tmp_path / ".longhaul" / "plan.yaml").write_text(yaml.safe_dump({
+        "project": "p", "target_days": 2, "profile": "flutter-android",
+        "milestones": [{"id": "m1", "title": "m", "tasks": [
+            {"id": "t1", "day": 1, "title": "a", "acceptance_criteria": ["x"]},
+            {"id": "t2", "day": 2, "title": "b", "acceptance_criteria": ["y"]},
+        ]}],
+    }))
+    assert main(["status"]) == 0
+    assert "tasks: 2  done: 0  failed: 0  parked: 0  pending: 2" in capsys.readouterr().out

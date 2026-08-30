@@ -2,6 +2,71 @@
 
 ## 2026-08-30
 
+* **Update**: The first live `longhaul run` found a **gate bypass**, and it was
+  only found by running it — no unit test would have.
+
+  The Coder did the work correctly: 28 files, 761 insertions, a real Flutter
+  scaffold with CI, in 592s for $1.99. Then it **committed its own work**.
+  `worktree.diff()` compared against `HEAD`, which was now the Coder's commit,
+  so the diff was empty, the cheat gate examined nothing, and the run reported
+  "the coder changed nothing" while a complete day's work sat on disk.
+
+  It failed safe by accident. The real flaw is that **an agent that commits
+  makes the gates blind** — a cheat committed rather than left in the working
+  tree would have been waved through. Fixed by pinning the base commit when the
+  worktree is created (`Worktree.base_sha`, persisted in `state.json`) and
+  taking every diff against that, never `HEAD`. Three regression tests, one of
+  which asserts the HEAD-relative diff is empty — the bug, pinned in place. The
+  Coder prompt now also says committing is Git Ops' job.
+
+* **Update**: The protected-path rule blocked a **new** `.github/workflows/ci.yml`
+  written by the Coder — but task t1's acceptance criteria explicitly require CI
+  that ships a debug APK, so the gate was stopping legitimate work. The rule now
+  distinguishes **creating** a workflow (allowed — adding a check is building the
+  gate) from **modifying** one (blocked — that is lowering it). Weakening a new
+  workflow is still caught, because `continue-on-error: true` is matched on any
+  added line wherever it appears.
+
+  With both fixed, the real day-1 artifacts pass the whole pipeline: 23 files
+  checked, 0 blocking, and `install ok · lint ok · test ok · build ok · tests 3`
+  from a genuine `flutter analyze`, `flutter test` and `flutter build apk`.
+
+* **Creation**: [The day loop](/architecture/the-day-loop.md), and with it the
+  Coder and DevOps roles — `core/orchestrator.py`, `core/state.py`,
+  `core/worktree.py`, `core/devops.py`, `schema/state.py`, `roles/coder.md`, and
+  the `run` and `status` commands. Three of twelve roles now exist as code.
+
+  Two properties are tested rather than assumed, because without both the tool
+  is not safe to schedule: **idempotent** (running twice in a day does not do
+  the work twice) and **resumable** (killed at any point, the next invocation
+  continues from `state.json`). State is written with a temp file and an atomic
+  rename, and the ledger reader tolerates a torn final line — a run killed
+  mid-write must lose one step, never the project's whole memory.
+
+* **Update**: **DevOps is implemented deterministically, not as an agent** — a
+  departure from `plan.md`, recorded there too. Running the test suite requires
+  no judgement, and asking a model whether its own tests passed reintroduces
+  exactly the self-report this project exists to remove. Interpreting a failure
+  does need judgement, and that happens where it belongs: the raw build output
+  is fed back to the Coder on retry, with an explicit instruction not to weaken
+  the check that caught it.
+
+* **Update**: The cheat gate now runs **before** the build rather than after,
+  with a test asserting the ordering. There is no point spending a build on a
+  diff that is already disqualified, and without the test the ordering would
+  drift silently and cost a build per rejected attempt.
+
+* **Update**: `longhaul status` reported `pending: 0` while seventeen tasks were
+  undone, because the count only saw tasks `state.json` had already created. A
+  count that silently omits everything not yet started is the failure this
+  project is named for; fixed, with a test.
+
+* **Update**: `plan.md` now carries live build-status markers — a status table
+  near the top and ✅/🔨/— against every role, feature and milestone — so the
+  design document and the state of the code cannot drift apart unnoticed. It
+  also records the three decisions changed while building: deterministic DevOps,
+  gate-before-build, and `report` moved into v0.1.
+
 * **Creation**: [The plan contract](/architecture/plan-contract.md) and the
   Planner — the first of the twelve roles to exist as code rather than as a
   specification. `schema/plan.py`, `core/planner.py`, `roles/planner.md`, a

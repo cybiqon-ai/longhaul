@@ -34,8 +34,16 @@ CONFIG_FILES = (
     "mypy.ini",
 )
 
-#: Paths an agent may never touch without a human. Editing the workflow that
-#: runs the tests is the most efficient way to make the tests stop mattering.
+#: Paths whose **modification** needs a human. Editing the workflow that runs the
+#: tests is the most efficient way to make the tests stop mattering.
+#:
+#: Creating one of these where none existed is a different act and is allowed —
+#: a task whose acceptance criteria say "CI ships a debug APK" cannot satisfy
+#: them without writing a workflow. The first live run blocked exactly that, on
+#: a brand-new file, which is a gate that stops legitimate work rather than
+#: cheating. Adding a check is building the gate; changing one is lowering it.
+#: Weakening a *new* workflow is still caught: `continue-on-error: true` is
+#: matched on any added line, wherever it appears.
 PROTECTED = (
     ".github/workflows/",
     ".longhaul/config.yml",
@@ -79,18 +87,22 @@ TEST_PATH = re.compile(r"(^|/)(tests?|__tests__|spec)/|(_test|\.test|\.spec|_spe
 TEST_FUNC = re.compile(r"^\s*(def test_|async def test_|func Test|it\(|test\(|void test)")
 
 
-def _hunks(diff: str) -> list[tuple[str, list[tuple[str, int]]]]:
-    """Split a unified diff into (path, [(line, lineno), ...]) for added lines."""
-    files: list[tuple[str, list[tuple[str, int]]]] = []
+def _hunks(diff: str) -> list[tuple[str, bool, list[tuple[str, int]]]]:
+    """Split a unified diff into (path, is_new, [(line, lineno), ...]) for added lines."""
+    files: list[tuple[str, bool, list[tuple[str, int]]]] = []
     path: str | None = None
     added: list[tuple[str, int]] = []
+    is_new = was_new = False
     lineno = 0
     for raw in diff.splitlines():
-        if raw.startswith("+++ "):
+        if raw.startswith("--- "):
+            is_new = raw[4:].strip() in ("/dev/null", "a//dev/null")
+        elif raw.startswith("+++ "):
             if path is not None:
-                files.append((path, added))
+                files.append((path, was_new, added))
             target = raw[4:].strip()
             path = target[2:] if target.startswith(("a/", "b/")) else target
+            was_new = is_new
             added = []
         elif raw.startswith("@@"):
             m = re.search(r"\+(\d+)", raw)
@@ -101,7 +113,7 @@ def _hunks(diff: str) -> list[tuple[str, list[tuple[str, int]]]]:
         elif not raw.startswith("-"):
             lineno += 1
     if path is not None:
-        files.append((path, added))
+        files.append((path, was_new, added))
     return files
 
 
@@ -127,11 +139,11 @@ class CheatGate:
         removed = _removed_by_file(diff)
         result.checked = len(added)
 
-        for path, lines in added:
+        for path, is_new, lines in added:
             if path == "/dev/null":
                 continue
 
-            if any(path.startswith(p) or p in path for p in PROTECTED):
+            if not is_new and any(path.startswith(p) or p in path for p in PROTECTED):
                 result.findings.append(
                     Finding(
                         self.name,

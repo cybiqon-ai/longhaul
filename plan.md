@@ -47,6 +47,50 @@ land later without touching the orchestrator.
 
 ---
 
+## Build status — 30 Aug 2026
+
+Marked against this plan as it is built. `✅` runs and is tested; `🔨` partially
+built; `—` not started. **Nothing has yet executed a full day end to end** — the
+Coder writes code and DevOps verifies it, but nothing is committed or pushed.
+
+| Piece | Status |
+|---|---|
+| `doctor` · `gate` · `plan` · `simulate` · `run` · `status` | ✅ |
+| `init` · `report` · `ui` · `rollback` · `kill` | — |
+| **Planner** | ✅ real 14-day plan, $0.72, committed as `examples/android-game/plan.yaml` |
+| **Orchestrator** | 🔨 selects, isolates, runs, records. No git operations yet |
+| **Coder** | ✅ implements one task in a worktree, retries with the real error |
+| **DevOps/QA** | ✅ **deterministic, not an agent** — see the note under §DevOps below |
+| **Git Ops** · **Notifier** | — next slice |
+| **Supervisor** | 🔨 retry budget and attempt counting only; no ceilings, no loop detection |
+| Designer · Assets · Reviewer · Scribe · Issues | — |
+| `plan.yaml` + `state.json` contracts | ✅ validated hard, 87 tests |
+| Cheat gate | ✅ runs before the build, blocks the task |
+| secrets · deps · coverage ratchet gates | — |
+| Proof gate | — |
+
+**Changed from this plan while building it:**
+
+1. **DevOps is deterministic, not an agent.** Running `flutter test` needs no
+   judgement, and asking a model whether the tests passed reintroduces exactly
+   the self-report this project exists to remove. Interpreting a failure *does*
+   need judgement, and that happens where it belongs — the raw output is fed
+   back to the Coder on retry. `core/devops.py`.
+2. **The cheat gate runs before the build, not after.** No point spending a
+   build on a diff that is already disqualified, and a test asserts the ordering.
+3. **`report` moved into v0.1** (from v0.5) — a static timeline is the debugging
+   surface for the orchestrator, and reading `state.json` by hand stops working
+   around day three.
+4. **Every diff is taken against a pinned base commit, never `HEAD`.** The first
+   live run's Coder committed its own work, which made a HEAD-relative diff empty
+   and the gates blind to 761 insertions. The base is now recorded when the
+   worktree is created and persisted in `state.json`.
+5. **Creating a CI workflow is allowed; modifying one is not.** The blanket
+   protected-path rule blocked a task whose acceptance criteria required writing
+   CI. Adding a check is building the gate; changing one is lowering it.
+
+---
+
 ## Registry facts (checked, 30 Aug 2026)
 
 | Name | Status |
@@ -94,13 +138,13 @@ to answer").
 
 | Role | Responsibility | When |
 |---|---|---|
-| **Planner** `v0.1` | target.md → dependency-ordered day-sized task graph with acceptance criteria and risk flags | Once at init; re-invoked on re-plan |
-| **Orchestrator** `v0.1` | Loads state + plan, picks today's task, dispatches, decides retry vs escalate | Daily |
-| **Coder** `v0.1` | Implements today's task in an isolated worktree; writes code *and* tests | Per task |
-| **DevOps/QA** `v0.1` | Build, lint, typecheck, test — reports structured pass/fail with real errors | Per task |
-| **Git Ops** `v0.1` | Worktree, conventional commit, push, open PR, link issue, merge only if opted in | Per task |
-| **Notifier** `v0.1` | Telegram digest, failure alerts, decision requests | Every interesting transition |
-| **Supervisor** `v0.2` | Wraps every agent call: retry budget, loop detection, cost/time ceilings, hard halt | Continuous |
+| **Planner** ✅ | target.md → dependency-ordered day-sized task graph with acceptance criteria and risk flags | Once at init; re-invoked on re-plan |
+| **Orchestrator** 🔨 | Loads state + plan, picks today's task, dispatches, decides retry vs escalate | Daily |
+| **Coder** ✅ | Implements today's task in an isolated worktree; writes code *and* tests | Per task |
+| **DevOps/QA** ✅ | Build, lint, typecheck, test — reports structured pass/fail with real errors. **Implemented deterministically rather than as an agent**: running the suite needs no judgement, and a model reporting on its own tests is the self-report this project removes | Per task |
+| **Git Ops** — | Worktree, conventional commit, push, open PR, link issue, merge only if opted in | Per task |
+| **Notifier** — | Telegram digest, failure alerts, decision requests | Every interesting transition |
+| **Supervisor** 🔨 | Wraps every agent call: retry budget, loop detection, cost/time ceilings, hard halt | Continuous |
 | **Designer** `v0.3` | Day-1 design system (palette, type scale, spacing, motion, tone) + per-screen specs. Later UI tasks are checked against it | Once, then per UI task |
 | **Assets** `v0.3` | Sprites, icons, audio; writes `assets/CREDITS.md` with license provenance | Per asset task |
 | **Reviewer** `v0.4` | Diffs the change against the task's acceptance criteria; flags scope creep, security, breaking changes; writes ADRs | Per task, pre-merge |
@@ -203,7 +247,7 @@ The spec covers roles, retries and Telegram. These are the gaps that decide
 whether a 14-day unattended run produces a working Android game or fourteen days
 of plausible-looking commits.
 
-### 1. Memory — a knowledge bundle, not just a state file `★ the differentiator`
+### 1. Memory — a knowledge bundle, not just a state file `— not started`
 `state.json` tracks *progress*; nothing tracks *knowledge*. On day 20 the Coder
 has no idea why day 4 chose Flame over raw Canvas, so it re-litigates or
 contradicts it. Longhaul should build and maintain an **OKF knowledge bundle** in
@@ -213,7 +257,7 @@ OKF is an existing open specification with an existing validator, so this costs
 almost nothing to adopt. No competing project has a durable project memory — it
 is the strongest thing Longhaul can ship.
 
-### 2. The cheat detector — deterministic anti-slop gates `★ highest value per line`
+### 2. The cheat detector — deterministic anti-slop gates `✅ BUILT`
 The dominant long-horizon failure is not bad code, it's the agent making the
 *gate* pass instead of the *code* work. Enforce mechanically, from the diff, with
 no model in the loop:
@@ -225,7 +269,7 @@ no model in the loop:
 This is *report a count, not a status* applied to an agent. A green check that
 ran zero tests is the failure this gate exists to prevent.
 
-### 3. The Proof gate — does it actually run?
+### 3. The Proof gate — does it actually run? `— not started`
 Tests passing ≠ the app works. Every task declares what proof means. For the
 Android game: build APK → boot emulator → `adb install` → drive it → screenshot →
 a vision check that the screenshot matches the day's acceptance criteria *and*
@@ -247,7 +291,7 @@ retro run re-plans the remaining days from measured velocity and reports the sli
 plainly — *"Day 8/14, 5 done, 3 slipped, forecast Day 17."* A deadline forecast
 the tool refuses to flatter is the whole point of tracking one.
 
-### 6. Budget, ceilings and a kill switch
+### 6. Budget, ceilings and a kill switch `🔨 ledger built; ceilings not`
 `total_cost_usd` arrives free in every `--output-format json` response. Enforce
 per-task, per-day and per-project ceilings plus wall-clock caps in the
 Supervisor — not by asking the agent to police itself. `longhaul kill` stops
@@ -261,7 +305,7 @@ README kept current; a tagged GitHub Release with the APK attached at every
 milestone; and a public `docs/devlog/day-NN.md` — which doubles as marketing for
 both Longhaul and whatever it builds.
 
-### 8. `longhaul doctor` — preflight, before day 1 and before every run
+### 8. `longhaul doctor` — preflight, before day 1 and before every run `✅ BUILT`
 Verify `claude` is installed **and still authenticated**, git identity and remote
 write access, the profile's toolchain (Flutter/Gradle/Java/emulator), disk space,
 CI wired, secrets present. Refuse to start otherwise.
@@ -270,13 +314,13 @@ scheduled pipeline whose Claude CLI had logged out reported `OAuth session
 expired` in a way that read as success, and ran empty for four consecutive
 nights. Longhaul treats that as a hard, loud failure.
 
-### 9. Project profiles
+### 9. Project profiles `✅ BUILT` (one: flutter-android)
 `profiles/flutter-android.yml`, `nextjs-web.yml`, `python-api.yml`, … carrying
 build/test/lint/run/smoke commands and gate definitions, so DevOps never guesses
 at a stack. Users add their own; this is how Longhaul stays honest across
 languages, and it's the natural first contribution for an outsider.
 
-### 10. Worktrees, checkpoints, rollback
+### 10. Worktrees, checkpoints, rollback `🔨 worktrees built; tags and rollback not`
 Each task runs in a `git worktree`, not just a branch, so a wedged day can't
 break the main checkout. Every completed day is a tag → `longhaul rollback day-7`.
 Optional Docker for full isolation.
@@ -294,7 +338,7 @@ Non-negotiable for a tool that pushes unattended. A credential committed by an
 agent is not a hypothetical: tokens end up in `.git/config` remotes and in
 `.env` files that a well-meaning `git add -A` will happily stage.
 
-### 13. `longhaul simulate`
+### 13. `longhaul simulate` `✅ BUILT`
 Run the Planner only and print the 14-day arc with no code written and almost no
 spend, so you can read the plan before committing two weeks to it.
 
@@ -416,10 +460,12 @@ confirmed `message_id` is also the only honest evidence a notification landed.
 
 Sized for 1–2 h/day. Each ends at something demonstrable.
 
-- **v0.1 — it does one day** `doctor`, `init`, `plan`, `run`, **`report`**.
-  Planner → Coder → DevOps → GitOps. State, cost ledger, worktrees, PR-only, no
-  auto-merge, Telegram notify-only, manual trigger. Full plan schema and role
-  registry ship complete even though half the roles are unimplemented.
+- **v0.1 — it does one day** 🔨 `doctor` ✅ · `gate` ✅ · `plan` ✅ · `simulate` ✅ ·
+  `run` ✅ · `status` ✅ · `init` — · `report` —.
+  Planner ✅ → Coder ✅ → DevOps ✅ → GitOps —. State ✅, cost ledger ✅,
+  worktrees ✅; PR-only, no auto-merge, Telegram notify-only and the manual
+  trigger still to come. Full plan schema and role registry ship complete even
+  though half the roles are unimplemented ✅.
 - **v0.2 — it does many days unattended** Supervisor (retry with real error
   feedback, loop detection, ceilings), the cheat-detector gates, scheduling (cron
   + systemd + GitHub Actions template), resume-after-crash, **`ui` live on :4321**.

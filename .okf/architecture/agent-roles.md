@@ -14,19 +14,20 @@ general agent. Each is a markdown prompt in `src/longhaul/roles/`, written in th
 numbered-protocol style ("▶ STEP N", "run autonomously, there is nobody to
 answer").
 
-**One of the twelve is implemented: the Planner.** It reads a target file,
-plans N days against a stack profile, and returns a validated plan — with
-read-only tools, so a planning step can always be safely re-run. The other
-eleven are specifications; this concept records the design, not the state.
+**Three of the twelve are implemented: the Planner, the Coder and DevOps.**
+The Planner reads a target and returns a validated plan, with read-only tools so
+it can always be safely re-run. The Coder implements one task in an isolated
+worktree. DevOps is **not an agent** — see below. The Orchestrator exists but
+stops before git. The other eight are specifications.
 
 # The roles
 
 | Role | Responsibility | Scoped for |
 |---|---|---|
 | Planner **(built)** | target.md → dependency-ordered day-sized task graph with acceptance criteria | v0.1 |
-| Orchestrator | Picks today's task, dispatches, decides retry vs escalate | v0.1 |
-| Coder | Implements the task in an isolated worktree; writes code *and* tests | v0.1 |
-| DevOps/QA | Build, lint, typecheck, test; reports structured failures | v0.1 |
+| Orchestrator **(partial)** | Picks today's task, dispatches, decides retry vs escalate. No git operations yet | v0.1 |
+| Coder **(built)** | Implements the task in an isolated worktree; writes code *and* tests | v0.1 |
+| DevOps/QA **(built)** | Build, lint, typecheck, test; reports structured failures. Deterministic, not an agent | v0.1 |
 | Git Ops | Worktree, conventional commit, push, PR, link issue | v0.1 |
 | Notifier | Telegram digest, failure alerts, decision requests | v0.1 |
 | Supervisor | Retry budget, loop detection, cost and wall-clock ceilings | v0.2 |
@@ -56,6 +57,14 @@ enforced outside the agent rather than asked of it.
 The pattern to generalise: wrap `claude -p` in `flock` and `timeout`, then
 verify from a ledger that the run actually produced output. Trusting exit code 0
 is how a scheduled agent runs empty for weeks without anyone noticing.
+
+# DevOps is deliberately not an agent
+
+Running `flutter test` requires no judgement, and asking a model whether the
+tests passed reintroduces exactly the self-report this project exists to remove.
+`core/devops.py` runs the profile's commands as subprocesses and reports a
+count. Interpreting a failure *does* need judgement, and that happens where it
+belongs: the raw output is fed back to the Coder on retry.
 
 # Escalation parks, it does not halt
 
