@@ -33,6 +33,9 @@ DEFAULT_MAX_ATTEMPTS = 3
 #: network access or the ability to push; git operations belong to Git Ops.
 CODER_TOOLS = ["Read", "Glob", "Grep", "Edit", "Write", "Bash"]
 
+#: Which role implements a task. Everything not listed goes to the Coder.
+ROLE_FOR_KIND = {"design": "designer"}
+
 
 @dataclass
 class Outcome:
@@ -87,12 +90,6 @@ def run_task(
         ts.last_error = halt.reason
         return Outcome(task, HALTED, f"halted ({halt.scope}): {halt.reason}", ts.cost_usd)
 
-    if task.needs_human:
-        ts.status = PARKED
-        ts.finished_at = now()
-        ts.last_error = "the plan reserved this decision for a human"
-        return Outcome(task, PARKED, "parked: the plan flagged this task needs_human")
-
     profile = profiles.load(profile_name or config.profile or plan.profile)
 
     tree = worktree.create(task.id, root=root)
@@ -103,15 +100,16 @@ def run_task(
     ts.started_at = ts.started_at or now()
     state_io.save(state, root)
 
+    role = ROLE_FOR_KIND.get(task.kind, "coder")
     previous = ts.last_error if ts.attempts > 1 else None
     started = time.monotonic()
     result = driver.run(
         AgentRequest(
             prompt=_coder_prompt(plan, task, profile, previous),
-            role="coder",
+            role=role,
             cwd=str(tree.path),
             allowed_tools=CODER_TOOLS,
-            append_system_prompt=roles.load("coder"),
+            append_system_prompt=roles.load(role),
             resume_session=ts.coder_session if previous else None,
         )
     )
@@ -121,7 +119,7 @@ def run_task(
         {
             "at": now(),
             "task": task.id,
-            "role": "coder",
+            "role": role,
             "attempt": ts.attempts,
             "session_id": result.session_id,
             "cost_usd": round(result.cost_usd, 4),
@@ -167,10 +165,25 @@ def run_task(
         return _fail(ts, task, f"nothing was committed: {ship.detail}",
                      max_attempts, ts.cost_usd, report=report)
 
-    ts.status = DONE
     ts.finished_at = now()
-    ts.last_error = None
     ts.findings = []
+
+    if task.needs_human:
+        # `needs_human` means a human must *decide*, not that no work happens.
+        # Every such task in a real plan asks for the material the decision
+        # rests on — three palette options, a dependency comparison, a
+        # difficulty curve. Parking with nothing produces nothing to decide
+        # from, and blocks every dependent task behind an empty question.
+        ts.status = PARKED
+        ts.last_error = "the plan reserved this decision for you — the work is done and waiting"
+        return Outcome(
+            task, PARKED,
+            f"{report.summary()} · {ship.detail} · parked for your decision",
+            ts.cost_usd, report,
+        )
+
+    ts.status = DONE
+    ts.last_error = None
     return Outcome(task, DONE, f"{report.summary()} · {ship.detail}", ts.cost_usd, report)
 
 

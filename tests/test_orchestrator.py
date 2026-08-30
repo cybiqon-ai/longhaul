@@ -114,13 +114,64 @@ def test_returns_none_when_everything_is_settled():
 
 # --- running a task -------------------------------------------------------
 
-def test_a_needs_human_task_is_parked_without_calling_the_model(repo):
+def test_a_needs_human_task_does_the_work_then_parks(repo, monkeypatch):
+    """`needs_human` means a human must *decide*, not that no work happens.
+
+    Every such task in a real plan asks for the material the decision rests on —
+    three palette options, a dependency comparison, a difficulty curve. Parking
+    with nothing produces nothing to decide from, and blocks every dependent
+    behind an empty question. On the reference 14-day plan that stalled the whole
+    project on day 2.
+    """
+    patch_coder_writes(monkeypatch)
+    patch_devops(monkeypatch, green())
     driver = FakeDriver()
     s = State()
     p = plan()
     out = orchestrator.run_task(driver, p, p.task("t3"), s, repo)
+
     assert out.status == PARKED
-    assert driver.requests == [], "must not spend anything on a parked task"
+    assert len(driver.requests) == 1, "the work must actually happen"
+    assert "waiting" in s.tasks["t3"].last_error
+    assert s.tasks["t3"].commit_sha, "the artefacts must be committed, not discarded"
+
+
+def test_a_parked_task_still_blocks_its_dependents():
+    """Conservative on purpose: the decision has not been made yet."""
+    s = State()
+    s.task("t1").status = PARKED
+    nxt = orchestrator.next_task(plan(), s)
+    assert nxt is None or nxt.id != "t2"
+
+
+def test_a_design_task_goes_to_the_designer_not_the_coder(repo, monkeypatch):
+    patch_coder_writes(monkeypatch)
+    patch_devops(monkeypatch, green())
+    driver = FakeDriver()
+    p = plan()
+    p.task("t1").kind = "design"
+    orchestrator.run_task(driver, p, p.task("t1"), State(), repo)
+    prompt = driver.requests[0].append_system_prompt
+    assert "You are the Designer" in prompt
+    assert "PROVISIONAL" in prompt, "it must offer options, not decide for them"
+
+
+def test_everything_else_goes_to_the_coder(repo, monkeypatch):
+    patch_coder_writes(monkeypatch)
+    patch_devops(monkeypatch, green())
+    driver = FakeDriver()
+    p = plan()
+    orchestrator.run_task(driver, p, p.task("t1"), State(), repo)
+    assert "You are the Coder" in driver.requests[0].append_system_prompt
+
+
+def test_the_ledger_records_which_role_ran(repo, monkeypatch):
+    patch_coder_writes(monkeypatch)
+    patch_devops(monkeypatch, green())
+    p = plan()
+    p.task("t1").kind = "design"
+    orchestrator.run_task(FakeDriver(), p, p.task("t1"), State(), repo)
+    assert state_io.read_ledger(repo)[0]["role"] == "designer"
 
 
 def test_a_successful_task_is_marked_done_and_costed(repo, monkeypatch):

@@ -12,6 +12,21 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`3a126dd` feat(designer): a design system, and `needs_human` that actually
+  does the work.** The Designer role produces one tokens document — palette roles
+  with contrast ratios, type scale, spacing scale, motion, tone — plus the
+  implementation file the code imports, because a design system that exists only
+  as markdown is a document, not a system. Where the author reserved the choice
+  it produces at least three named options, marks exactly one PROVISIONAL so
+  implementation is not blocked, and never quietly promotes it.
+  *Found by reading the real 14-day plan:* every `needs_human` task's acceptance
+  criteria ask for **the material the decision rests on** — three palette
+  options, a dependency comparison, a difficulty curve. Parking with nothing
+  produced nothing to decide from and blocked every dependent behind an empty
+  question, which stalled the reference project on **day 2 of 14**. Such tasks
+  now run, commit their artefacts, and *then* park for the decision. Dependents
+  still wait, which is the conservative and correct default.
+
 - **`66d0b72` feat(ui): the report, live on localhost.** `longhaul ui` serves it
   from stdlib `http.server` on `:4321` with SSE — no framework, no build step,
   still one runtime dependency. The server watches `.longhaul/` and pushes; the
