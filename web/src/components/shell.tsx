@@ -121,11 +121,14 @@ export function Shell({
   sidebar, topbar, children,
 }: { sidebar: ReactNode; topbar: ReactNode; children: ReactNode }) {
   return (
-    <div className="grid min-h-screen md:grid-cols-[232px_1fr]">
+    // Without a sidebar the two-column grid puts the only child into the first
+    // column — 232px wide — and squeezes the whole page into it. The Projects
+    // screen has no sidebar, so the columns have to be conditional.
+    <div className={cx("grid min-h-screen", sidebar ? "md:grid-cols-[232px_1fr]" : null)}>
       {sidebar}
       <div className="min-w-0">
         {topbar}
-        <main className="max-w-[1500px] px-5 pb-16 pt-5">{children}</main>
+        <main className="mx-auto w-full max-w-[1500px] px-5 pb-16 pt-5">{children}</main>
       </div>
     </div>
   );

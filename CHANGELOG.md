@@ -12,6 +12,15 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`1530bd8` fix(web): the Projects page rendered 232px wide.** The shell
+  applied `md:grid-cols-[232px_1fr]` unconditionally, but Projects has no
+  sidebar — so its single child landed in the *first* column and the whole page
+  was squeezed into the sidebar's width. Everything was correctly styled and
+  simply unreadable, which the CSS checks could never catch because every class
+  was generated properly.
+  The columns are now conditional on there being a sidebar, and two tests assert
+  Projects has none while a project page keeps its own.
+
 - **`8692054` fix(web): the interface rendered completely unstyled.** Every
   utility was written as `bg-[--color-panel]` — Tailwind 3 arbitrary-value
   syntax. **Tailwind 4 does not error on it; it silently generates nothing.** So

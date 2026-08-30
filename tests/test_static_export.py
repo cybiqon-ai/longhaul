@@ -71,3 +71,23 @@ def test_the_project_route_is_prerendered_under_its_placeholder():
     """The server rewrites /p/<id>/tasks onto these, so they have to exist."""
     for name in ("_.html", "_/tasks.html", "_/runs.html", "_/chats.html"):
         assert (STATIC / "p" / name).is_file(), f"missing export: p/{name}"
+
+
+def test_the_projects_page_is_not_squeezed_into_a_sidebar_column():
+    """The Projects screen has no sidebar.
+
+    The shell applied `md:grid-cols-[232px_1fr]` unconditionally, so with a
+    single child the whole page landed in the *first* column and rendered 232px
+    wide. Everything looked styled and was simply unreadable — which no CSS
+    check catches, because the classes were all correctly generated.
+    """
+    home = (STATIC / "index.html").read_text()
+    assert "grid min-h-screen" in home
+    assert "md:grid-cols-[232px_1fr]" not in home, (
+        "the projects page must not reserve a sidebar column it has no sidebar for"
+    )
+
+
+def test_a_project_page_does_keep_its_sidebar_column():
+    project = (STATIC / "p" / "_.html").read_text()
+    assert "md:grid-cols-[232px_1fr]" in project
