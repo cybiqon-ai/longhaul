@@ -12,6 +12,16 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`17faa21` fix(web): make the export reproducible, so the staleness check
+  means something.** CI's "is the committed export stale?" check failed on a
+  clean rebuild. Next generates a **random build id per build** and bakes it into
+  asset paths and every emitted HTML file, so an identical rebuild produced a
+  55-file diff — the check could never pass and proved nothing.
+  The build id is now a hash of the frontend source and lockfile, so it changes
+  exactly when the source does, which is what a build id is for. An identical
+  rebuild now produces a **byte-identical** export, which makes the CI check real
+  and the wheel reproducible.
+
 - **`78b2a76` feat(web): a Next.js application, bundled into the wheel.** Next 16,
   React 19, Tailwind 4, TanStack Table, Recharts. Routes: `/` lists every project
   on this machine, and `/p/<id>` carries Overview, Timeline, Tasks, Agent runs,
