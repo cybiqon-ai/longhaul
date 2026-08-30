@@ -19,6 +19,7 @@ from pathlib import Path
 import yaml
 
 from . import __version__, doctor, profiles
+from .core import init as init_mod
 from .core import notify, orchestrator, planner, worktree
 from .core import state as state_io
 from .core.lock import AlreadyRunning, acquire
@@ -150,6 +151,41 @@ def _load_plan() -> Plan:
         for problem in exc.problems:
             print(f"  ✗ {problem}")
         raise SystemExit(1) from exc
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    """Make a repository ready, and refuse if it is not."""
+    root = Path.cwd()
+    result = init_mod.run(
+        root,
+        profile=args.profile,
+        target=Path(args.target),
+        schedule=args.schedule,
+        is_repo=worktree.is_repo(root),
+    )
+
+    for path in result.created:
+        print(f"  + {path}")
+    for path in result.skipped:
+        print(f"  · {path}")
+    for problem in result.problems:
+        print(f"  ✗ {problem}")
+
+    print(f"\ncreated: {len(result.created)}  skipped: {len(result.skipped)}  "
+          f"problems: {len(result.problems)}")
+    if not result.ok:
+        return 1
+
+    print("\nchecking the environment before you spend anything:")
+    checks = doctor.run(quick=args.quick)
+    doctor.report(checks)
+
+    print("\nnext:")
+    print(f"  1. describe the project in {args.target}")
+    print(f"  2. longhaul plan --target {args.target} --days N --profile {args.profile}")
+    print("  3. longhaul simulate --from .longhaul/plan.yaml   # read it before committing")
+    print("  4. longhaul run")
+    return 0
 
 
 def cmd_run(args: argparse.Namespace) -> int:
@@ -343,8 +379,17 @@ def build_parser() -> argparse.ArgumentParser:
     k = sub.add_parser("kill", help="stop the run in progress")
     k.set_defaults(func=cmd_kill)
 
+    i = sub.add_parser("init", help="prepare a repository for longhaul")
+    i.add_argument("--target", default="target.md", help="the target file to create or keep")
+    i.add_argument("--profile", default="flutter-android", help="project stack")
+    i.add_argument(
+        "--schedule", default="none", choices=["none", "cron", "systemd", "actions"],
+        help="also write a scheduling file for you to read and install",
+    )
+    i.add_argument("--quick", action="store_true", help="skip the round-trip to Claude")
+    i.set_defaults(func=cmd_init)
+
     planned = {
-        "init": "v0.1",
         "report": "v0.1",
         "ui": "v0.2",
         "rollback": "v0.2",

@@ -1,0 +1,21 @@
+# Longhaul — one run a day. Read this before installing it.
+#
+#   crontab -e     then paste the line below
+#
+# Three things this line does deliberately:
+#
+#   flock     Longhaul takes its own lock, but flock stops a second process
+#             even reaching that point. A run that outlasts its interval must
+#             never have a sibling.
+#   timeout   No unattended job may hang forever. 2h is generous for one day's
+#             work; the orchestrator's own ceilings will usually stop it first.
+#   >> log    Into a directory that already exists. A cron writing to a missing
+#             path fails silently, every night, until someone looks.
+#
+# The log is the only place a scheduled failure is visible unless you have
+# configured a notifier. Set `notify.backend: telegram` in .longhaul/config.yml
+# and export TELEGRAM_TOKEN and TELEGRAM_CHAT_ID, or read this file by hand.
+#
+# Times are in the machine's timezone. `date` will tell you what that is.
+
+30 3 * * *  cd {{PROJECT_DIR}} && mkdir -p .longhaul/logs && /usr/bin/flock -n .longhaul/cron.lock timeout 2h longhaul run >> .longhaul/logs/run.log 2>&1

@@ -171,14 +171,12 @@ def test_an_overlapping_run_is_skipped_not_failed(tmp_path, monkeypatch, capsys)
 
 def test_config_template_matches_the_defaults():
     """The template is documentation; if it drifts from the code it misleads."""
-    from pathlib import Path
-
     import yaml
 
+    from longhaul.core.init import TEMPLATES
     from longhaul.schema.config import Config
 
-    root = Path(__file__).resolve().parents[1]
-    template = yaml.safe_load((root / "templates" / "config.yml").read_text())
+    template = yaml.safe_load((TEMPLATES / "config.yml").read_text())
     defaults = Config()
     assert Config.from_dict(template).limits == defaults.limits, (
         "the template's limits must be the code's defaults, or it misleads"

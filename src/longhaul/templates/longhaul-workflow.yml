@@ -1,0 +1,83 @@
+# Longhaul — a day's work, in GitHub Actions. Read this before enabling it.
+#
+# Four things to know before you turn this on:
+#
+# 1. AUTHENTICATION. Longhaul never handles your login. Add a repository secret,
+#    either ANTHROPIC_API_KEY from the Claude Console, or CLAUDE_CODE_OAUTH_TOKEN
+#    generated locally with `claude setup-token` on a Pro/Max/Team plan.
+#
+# 2. THE PUSH TOKEN MATTERS. GitHub does not trigger workflows on commits pushed
+#    with the default GITHUB_TOKEN. If Longhaul pushes with it, your CI never
+#    runs and every PR is green for the wrong reason. Longhaul detects this and
+#    fails the run rather than reporting success — but the fix is to give it a
+#    GitHub App token or a PAT in LONGHAUL_GITHUB_TOKEN.
+#
+# 3. SCHEDULED WORKFLOWS ON PUBLIC REPOS ARE DISABLED after 60 days without
+#    repository activity. Longhaul commits daily, so this stays alive on its own
+#    while it is working — but a paused project will quietly stop being scheduled.
+#
+# 4. COST. Every run spends real money against your account. The ceilings in
+#    .longhaul/config.yml are enforced by Longhaul, not by GitHub.
+name: Longhaul
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+# Only one run at a time, for the same reason Longhaul takes a lock locally:
+# two orchestrators sharing one state.json corrupt both.
+concurrency:
+  group: longhaul
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Longhaul
+        run: pip install longhaul-ai
+
+      # Add whatever your project's profile requires — a JDK, Flutter, Node.
+      # `longhaul doctor` names them and fails loudly if they are missing.
+      - name: Check the environment before spending anything
+        run: longhaul doctor
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+      - name: Run the day
+        run: longhaul run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # See note 2 above. Not the default GITHUB_TOKEN.
+          LONGHAUL_GITHUB_TOKEN: ${{ secrets.LONGHAUL_GITHUB_TOKEN }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Commit the day's state
+        if: always()
+        run: |
+          git config user.name "longhaul"
+          git config user.email "longhaul@users.noreply.github.com"
+          git add .longhaul
+          git diff --cached --quiet || git commit -m "chore(longhaul): record the day's state"
+          git push || echo "nothing to push"
+
+      - name: Progress
+        if: always()
+        run: longhaul status

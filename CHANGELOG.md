@@ -12,6 +12,21 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`0c884f4` feat(init): prepare a repository, and refuse if it is not ready.**
+  `longhaul init` writes `.longhaul/config.yml`, a `target.md` skeleton and the
+  right `.gitignore` lines, then runs `doctor` and prints the next four commands.
+  It never overwrites an existing file and is idempotent. `--schedule
+  cron|systemd|actions` also writes a scheduling file for you to read before
+  installing — each carrying the house rules (`flock`, `timeout`, a log directory
+  that exists) and, for Actions, the warning that a push with the default
+  `GITHUB_TOKEN` means your CI never runs.
+  The `.gitignore` block excludes only `worktrees/`, `runs/` and `lock`:
+  `plan.yaml`, `state.json` and the ledger are the audit trail and belong in the
+  repository.
+  *Noted while writing it:* templates briefly existed in two places, which is the
+  same drift hazard as a config template that no longer matches the code. There
+  is now one copy, shipped as package data.
+
 - **`b4c516c` fix(kill): signal the process group, not just the orchestrator.**
   Killing the parent alone orphans the agent it spawned — verified directly:
   SIGTERM to a parent, and its child survives reparented to init. For this tool

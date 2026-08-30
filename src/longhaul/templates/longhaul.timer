@@ -1,0 +1,40 @@
+# Longhaul — systemd user timer. Read this before installing it.
+#
+#   mkdir -p ~/.config/systemd/user
+#   cp .longhaul/longhaul.timer  ~/.config/systemd/user/longhaul.timer
+#   cp .longhaul/longhaul.service ~/.config/systemd/user/longhaul.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now longhaul.timer
+#   systemctl --user list-timers longhaul.timer
+#
+# Preferred over cron when available: systemd gives you `journalctl --user -u
+# longhaul`, a real record of every exit code, and Persistent=true so a run
+# missed while the machine was asleep is caught up rather than skipped.
+#
+# --- longhaul.timer ---
+[Unit]
+Description=Longhaul — one day's work, once a day
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
+
+# --- longhaul.service ---
+# Save the block below as ~/.config/systemd/user/longhaul.service
+#
+# [Unit]
+# Description=Longhaul run
+#
+# [Service]
+# Type=oneshot
+# WorkingDirectory={{PROJECT_DIR}}
+# ExecStart=/usr/bin/timeout 2h longhaul run
+# TimeoutStartSec=2h
+# # KillMode=control-group is the default and is the one that matters here:
+# # it stops the agent subprocess too, not just the orchestrator.
+# Environment=ANTHROPIC_API_KEY=
+# # Or, on a subscription: Environment=CLAUDE_CODE_OAUTH_TOKEN=
