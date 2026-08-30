@@ -23,10 +23,16 @@ import yaml
 
 from ..schema.plan import Plan, PlanError
 from ..schema.state import State
+from . import api as ui_api
 from . import render as ui_render
 from .data import build
 
 DEFAULT_PORT = 4321
+
+#: The statically exported Next.js app, bundled into the wheel at release time.
+#: Absent in a source checkout until `cd web && npm run build`, in which case the
+#: zero-dependency fallback page is served instead — the tool still works.
+STATIC_DIR = Path(__file__).parent / "static"
 POLL_INTERVAL_S = 1.0
 #: Long enough to keep proxies and browsers from timing the stream out.
 HEARTBEAT_S = 20.0
@@ -100,9 +106,12 @@ def _handler(root: Path):
             return json.dumps(payload).encode()
 
         def do_GET(self) -> None:  # noqa: N802 - stdlib signature
-            route = self.path.split("?", 1)[0]
-            if route == "/":
-                self._send(self._page(), "text/html; charset=utf-8")
+            route = unquote(self.path.split("?", 1)[0])
+
+            if route == "/api/projects":
+                self._json(ui_api.projects())
+            elif route.startswith("/api/projects/"):
+                self._project_api(route[len("/api/projects/"):])
             elif route == "/api/data":
                 self._send(self._data(), "application/json")
             elif route == "/api/summary":
@@ -117,8 +126,59 @@ def _handler(root: Path):
                 self._proof(route)
             elif route == "/events":
                 self._events()
+            elif STATIC_DIR.is_dir():
+                self._static(route)
+            elif route == "/":
+                self._send(self._page(), "text/html; charset=utf-8")
             else:
                 self._send(b"not found", "text/plain; charset=utf-8", 404)
+
+        def _json(self, body: dict, status: int = 200) -> None:
+            self._send(json.dumps(body).encode(), "application/json", status)
+
+        def _project_api(self, rest: str) -> None:
+            parts = [p for p in rest.split("/") if p]
+            if not parts:
+                self._json({"error": "not found"}, 404)
+                return
+            project_id = parts[0]
+            if len(parts) == 1:
+                body = ui_api.project_data(project_id)
+            elif parts[1] == "transcript" and len(parts) > 2:
+                body = ui_api.project_transcript(project_id, "/".join(parts[2:]))
+            elif parts[1] == "summary":
+                body = ui_api.summary(project_id)
+            else:
+                body = {"error": "not found"}
+            self._json(body, 404 if body.get("error") == "not found" else 200)
+
+        def _static(self, route: str) -> None:
+            """Serve the exported app, falling back to its shell for any route.
+
+            A statically exported single-page app has no file for /p/neon-drift,
+            so an unknown path that is not an asset gets index.html and the
+            client router takes it from there.
+            """
+            candidate = (STATIC_DIR / route.lstrip("/")).resolve()
+            try:
+                candidate.relative_to(STATIC_DIR.resolve())
+            except ValueError:
+                self._send(b"not found", "text/plain; charset=utf-8", 404)
+                return
+
+            if candidate.is_dir():
+                candidate = candidate / "index.html"
+            if not candidate.is_file():
+                if "." in route.rsplit("/", 1)[-1]:  # a missing asset, not a route
+                    self._send(b"not found", "text/plain; charset=utf-8", 404)
+                    return
+                candidate = STATIC_DIR / "index.html"
+            if not candidate.is_file():
+                self._send(self._page(), "text/html; charset=utf-8")
+                return
+
+            mime = mimetypes.guess_type(candidate.name)[0] or "application/octet-stream"
+            self._send(candidate.read_bytes(), mime)
 
         def _proof(self, route: str) -> None:
             """Serve a proof artefact, and nothing outside the proof directory."""

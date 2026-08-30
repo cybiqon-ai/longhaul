@@ -12,6 +12,22 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`90989e6` feat(api): a read-only HTTP surface, and test isolation that was
+  missing.** `/api/projects` for the home screen, `/api/projects/<id>` for the
+  full payload, `/api/projects/<id>/transcript/<path>` for one stored run.
+  Nothing writes — actions belong to a shared command layer both this and the
+  Telegram bot will call, and that does not exist yet. The server also serves a
+  bundled static app from `ui/static/` when present, falling back to the
+  zero-dependency page when it is not, so a source checkout still works before
+  anyone runs a frontend build.
+  *Found the moment the API ran against a real machine:* the test suite had
+  written **39 entries pointing at pytest temp directories into a developer's
+  actual `~/.longhaul/projects.json`**. `longhaul init` registers a project, and
+  the init tests patched nothing. A test must never be able to reach outside its
+  `tmp_path`, so `conftest.py` now redirects the registry for every test whether
+  or not the test knows the registry exists — and a test asserts the real home is
+  unreachable. The polluted registry was cleaned.
+
 - **`325da33` feat(transcripts,registry): the data a real interface needs.**
   Backend groundwork for a Next.js frontend with Home and Chats routes, done
   first so nothing renders against mock data.

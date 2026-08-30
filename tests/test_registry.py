@@ -11,12 +11,10 @@ import pytest
 from longhaul.core import registry
 
 
-@pytest.fixture(autouse=True)
-def home(tmp_path, monkeypatch):
-    """Never touch the real ~/.longhaul during a test run."""
-    monkeypatch.setattr(registry, "REGISTRY_DIR", tmp_path / "home")
-    monkeypatch.setattr(registry, "REGISTRY_PATH", tmp_path / "home" / "projects.json")
-    return tmp_path / "home"
+@pytest.fixture
+def home(isolate_longhaul_home):
+    """The suite-wide isolation, named for the tests that assert against it."""
+    return isolate_longhaul_home
 
 
 def project(tmp_path, name):
@@ -77,13 +75,13 @@ def test_forgetting_something_unknown_says_so():
 
 
 def test_a_corrupt_index_does_not_stop_the_tool(home):
-    home.mkdir(parents=True)
+    home.mkdir(parents=True, exist_ok=True)
     (home / "projects.json").write_text("{not json")
     assert registry.load().projects == []
 
 
 def test_entries_missing_a_path_are_skipped(home):
-    home.mkdir(parents=True)
+    home.mkdir(parents=True, exist_ok=True)
     (home / "projects.json").write_text(json.dumps(
         {"projects": [{"id": "ok", "path": "/tmp/x"}, {"id": "broken"}]}))
     assert [p.id for p in registry.load().projects] == ["ok"]
@@ -99,16 +97,25 @@ def test_the_registry_lives_outside_any_repository(tmp_path, monkeypatch):
     importlib.reload(registry)
 
 
-def test_init_registers_the_project(tmp_path, monkeypatch):
+def test_init_registers_the_project(tmp_path):
     import subprocess
 
     from longhaul.core import init
 
-    monkeypatch.setattr(init.registry, "REGISTRY_DIR", tmp_path / "home")
-    monkeypatch.setattr(init.registry, "REGISTRY_PATH", tmp_path / "home" / "projects.json")
     root = tmp_path / "proj"
     root.mkdir()
     subprocess.run(["git", "init", "-q", str(root)], check=True)
     result = init.run(root, profile="flutter-android", target=root / "target.md")
     assert result.ok
     assert any("registered as project" in c for c in result.created)
+
+
+def test_the_suite_cannot_reach_the_real_home(isolate_longhaul_home, tmp_path):
+    """This exists because it once could: a suite run left 38 entries pointing
+    at pytest temp directories in a developer's actual registry."""
+    from pathlib import Path
+
+    assert registry.REGISTRY_PATH == isolate_longhaul_home / "projects.json"
+    assert Path.home() not in registry.REGISTRY_PATH.parents
+    registry.register(project(tmp_path, "sandboxed"))
+    assert registry.REGISTRY_PATH.is_file()
