@@ -19,6 +19,7 @@ from .core import orchestrator, planner, worktree
 from .core import state as state_io
 from .driver.cli_driver import ClaudeAuthError, CliDriver
 from .gates.cheat import CheatGate
+from .gates.secrets import SecretsGate
 from .schema.plan import Plan, PlanError
 from .schema.state import DONE, FAILED, PARKED
 
@@ -48,19 +49,23 @@ def cmd_gate(args: argparse.Namespace) -> int:
             ["git", "diff", args.rev], capture_output=True, text=True, check=False
         ).stdout
 
-    result = CheatGate().check(diff)
-    for finding in result.findings:
+    findings, checked = [], 0
+    for gate in (CheatGate(), SecretsGate()):
+        result = gate.check(diff)
+        findings += result.findings
+        checked = max(checked, result.checked)
+    for finding in findings:
         print(f"  {'✗' if finding.severity == 'block' else '!'} {finding}")
 
-    blocking = sum(1 for f in result.findings if f.severity == "block")
-    warnings = len(result.findings) - blocking
-    print(f"\nfiles checked: {result.checked}  blocking: {blocking}  warnings: {warnings}")
-    if result.checked == 0:
+    blocking = sum(1 for f in findings if f.severity == "block")
+    warnings = len(findings) - blocking
+    print(f"\nfiles checked: {checked}  blocking: {blocking}  warnings: {warnings}")
+    if checked == 0:
         # Exit code 0 has already meant "did nothing" too often to be trusted.
         # A gate that examined no files has not cleared anything.
         print("nothing was checked — an empty diff is not a pass")
         return 1
-    return 1 if result.blocked else 0
+    return 1 if blocking else 0
 
 
 def _plan_or_die(args: argparse.Namespace) -> tuple[Plan, float]:

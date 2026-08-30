@@ -48,7 +48,7 @@ def test_blocks_deleted_test():
 """
     result = check(diff)
     assert blocking(result)
-    assert "test(s) removed" in blocking(result)[0].message
+    assert "more test(s) removed than added" in blocking(result)[0].message
 
 
 def test_blocks_workflow_edit():
@@ -172,5 +172,35 @@ def test_a_new_workflow_that_disables_itself_is_still_caught():
 +name: CI
 +jobs:
 +    continue-on-error: true
+"""
+    assert blocking(check(diff))
+
+
+def test_rewriting_tests_is_allowed_when_the_count_does_not_drop():
+    """Blocking a net-positive rewrite teaches the agent never to touch tests,
+    which is the opposite of what this gate wants."""
+    diff = """--- a/tests/test_auth.py
++++ b/tests/test_auth.py
+@@ -1,4 +1,6 @@
+-def test_login_old():
+-    assert login()
++def test_login_rejects_a_bad_password():
++    assert not login("wrong")
++def test_login_accepts_a_good_one():
++    assert login("right")
+"""
+    assert not blocking(check(diff)), [str(f) for f in check(diff).findings]
+
+
+def test_a_net_reduction_still_blocks():
+    diff = """--- a/tests/test_auth.py
++++ b/tests/test_auth.py
+@@ -1,6 +1,2 @@
+-def test_a():
+-    assert 1
+-def test_b():
+-    assert 2
++def test_a():
++    assert 1
 """
     assert blocking(check(diff))

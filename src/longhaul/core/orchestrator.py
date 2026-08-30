@@ -20,6 +20,7 @@ from pathlib import Path
 from .. import profiles, roles
 from ..driver.base import AgentDriver, AgentRequest
 from ..gates.cheat import CheatGate
+from ..gates.secrets import SecretsGate
 from ..schema.plan import Plan, Task
 from ..schema.state import DONE, FAILED, IN_PROGRESS, PARKED, State, now
 from . import devops, worktree
@@ -123,12 +124,13 @@ def run_task(
         return _fail(ts, task, f"the coder failed: {result.error}", max_attempts, ts.cost_usd)
 
     diff = worktree.diff(tree.path, ts.base_sha or tree.base_sha)
-    gate = CheatGate().check(diff)
-    blocking = [str(f) for f in gate.findings if f.severity == "block"]
+    blocking: list[str] = []
+    for gate in (CheatGate(), SecretsGate()):
+        blocking += [str(f) for f in gate.check(diff).findings if f.severity == "block"]
     if blocking:
         ts.findings = blocking
         return _fail(
-            ts, task, "blocked by the cheat gate:\n  " + "\n  ".join(blocking),
+            ts, task, "blocked by the gates:\n  " + "\n  ".join(blocking),
             max_attempts, ts.cost_usd, findings=blocking,
         )
     if not diff.strip():

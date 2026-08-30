@@ -183,7 +183,7 @@ def test_a_cheating_diff_is_blocked_before_the_build_even_runs(repo, monkeypatch
     p = plan()
     out = orchestrator.run_task(FakeDriver(), p, p.task("t1"), s, repo)
     assert out.status == FAILED
-    assert "cheat gate" in out.detail
+    assert "blocked by the gates" in out.detail
     assert called == [], "the gate must run before the build, not after"
 
 
@@ -307,7 +307,7 @@ def test_a_cheat_hidden_in_a_commit_is_still_caught(repo, monkeypatch):
     p = plan()
     out = orchestrator.run_task(FakeDriver(), p, p.task("t1"), State(), repo)
     assert out.status == FAILED
-    assert "cheat gate" in out.detail
+    assert "blocked by the gates" in out.detail
 
 
 def test_diff_is_taken_against_the_recorded_base_not_head(repo, monkeypatch):
@@ -320,3 +320,14 @@ def test_diff_is_taken_against_the_recorded_base_not_head(repo, monkeypatch):
                     "-c", "user.name=c", "commit", "-qm", "c"], check=True)
     assert "a.py" in wt.diff(tree.path, tree.base_sha)
     assert wt.diff(tree.path, "HEAD") == "", "HEAD-relative is exactly the bug"
+
+
+def test_a_secret_in_the_diff_blocks_the_task(repo, monkeypatch):
+    """Push is the point of no return; this must never reach a remote."""
+    fake_token = "ghp_" + "A" * 36  # built at runtime; never a literal in source
+    patch_coder_writes(monkeypatch, f"TOKEN = '{fake_token}'\n", "config.py")
+    patch_devops(monkeypatch, green())
+    p = plan()
+    out = orchestrator.run_task(FakeDriver(), p, p.task("t1"), State(), repo)
+    assert out.status == FAILED
+    assert "GitHub token" in out.detail

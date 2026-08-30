@@ -53,7 +53,11 @@ offline, with no credentials, in under a few seconds.
 
 ## Commits and PRs
 
-Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`) —
-the CHANGELOG is generated from them.
+Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
+
+**Add a `CHANGELOG.md` entry in the same commit**, under `## [Unreleased]`, with
+the short hash, the subject, and two or three sentences on what it did. If the
+change exists because something broke when you ran it, say so — that is the part
+a future reader needs most.
 
 Open an issue before a large change. Small fixes can go straight to a PR.

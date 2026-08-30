@@ -184,16 +184,26 @@ class CheatGate:
                         )
                     )
 
+        # Net, not gross. A rewrite that removes four tests and adds five is not
+        # a suite that tests less — and blocking it teaches the agent to avoid
+        # touching tests at all, which is the opposite of what this gate wants.
+        added_tests = {
+            path: sum(1 for text, _ in lines if TEST_FUNC.search(text))
+            for path, _is_new, lines in added
+        }
         for path, gone in removed.items():
             if path == "/dev/null" or not TEST_PATH.search(path):
                 continue
             deleted = sum(1 for line in gone if TEST_FUNC.search(line))
-            if deleted:
+            net = deleted - added_tests.get(path, 0)
+            if net > 0:
                 result.findings.append(
                     Finding(
                         self.name,
                         "block",
-                        f"{deleted} test(s) removed — a suite that tests less is not progress",
+                        f"{net} more test(s) removed than added ({deleted} out, "
+                        f"{added_tests.get(path, 0)} in) — a suite that tests less "
+                        "is not progress",
                         path,
                     )
                 )
