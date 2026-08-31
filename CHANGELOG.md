@@ -12,6 +12,17 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`edba5ed` fix(gates): adding a CI step is not weakening CI.** With the
+  integration fix in place, day 2 branched from a tree that already had day 1's
+  workflow — and its diff, **8 lines added and 0 removed**, was blocked as a
+  "protected path changed". The task's criteria required running a new guard in
+  CI; the change made CI *stricter*, and the gate stopped it.
+  Second time this rule proved too blunt: it first blocked *creating* a
+  workflow, now *adding to* one. What is dangerous is weakening a check, not
+  touching the file — so a purely additive change is allowed, while any diff
+  that deletes or rewrites an existing line still blocks. Weakening by addition
+  is caught separately, `continue-on-error: true` included.
+
 - **`3451374` fix(orchestrator): the day's work never landed, so no day could
   build on the one before.** The most consequential bug so far, and only a real
   multi-day run could have found it.

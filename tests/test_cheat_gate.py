@@ -154,6 +154,41 @@ def test_creating_a_ci_workflow_is_allowed():
     assert not blocking(check(diff)), [str(f) for f in check(diff).findings]
 
 
+def test_adding_a_step_to_an_existing_workflow_is_allowed():
+    """Found on the second live run: a task required to run a new guard in CI
+    had its 8-line, zero-deletion diff blocked. That change made CI stricter."""
+    diff = """--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -10,3 +10,5 @@
+       - run: flutter test
++      - name: Engine purity
++        run: dart run tool/check_engine_purity.dart
+"""
+    assert not blocking(check(diff)), [str(f) for f in check(diff).findings]
+
+
+def test_removing_a_step_from_a_workflow_still_blocks():
+    diff = """--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -10,4 +10,2 @@
+       - run: flutter analyze
+-      - name: Engine purity
+-        run: dart run tool/check_engine_purity.dart
+"""
+    assert blocking(check(diff))
+
+
+def test_weakening_a_workflow_by_addition_is_still_caught():
+    """Adding is allowed, but not adding something that disables the check."""
+    diff = """--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -10,2 +10,3 @@
+       - run: flutter test
++        continue-on-error: true
+"""
+    assert blocking(check(diff))
+
+
 def test_modifying_an_existing_ci_workflow_still_blocks():
     diff = """--- a/.github/workflows/ci.yml
 +++ b/.github/workflows/ci.yml

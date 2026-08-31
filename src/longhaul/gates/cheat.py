@@ -34,16 +34,23 @@ CONFIG_FILES = (
     "mypy.ini",
 )
 
-#: Paths whose **modification** needs a human. Editing the workflow that runs the
-#: tests is the most efficient way to make the tests stop mattering.
+#: Paths where *removing or altering* an existing line needs a human. Editing
+#: the workflow that runs the tests is the most efficient way to make the tests
+#: stop mattering.
 #:
-#: Creating one of these where none existed is a different act and is allowed —
-#: a task whose acceptance criteria say "CI ships a debug APK" cannot satisfy
-#: them without writing a workflow. The first live run blocked exactly that, on
-#: a brand-new file, which is a gate that stops legitimate work rather than
-#: cheating. Adding a check is building the gate; changing one is lowering it.
-#: Weakening a *new* workflow is still caught: `continue-on-error: true` is
-#: matched on any added line, wherever it appears.
+#: What is dangerous is **weakening** a check, not touching the file. Two live
+#: runs proved the blunter rules wrong, both by blocking legitimate work:
+#:
+#:   1. Creating a workflow was blocked, on a task whose acceptance criteria
+#:      said "CI ships a debug APK" — unsatisfiable without writing one.
+#:   2. Then *adding a step* to an existing workflow was blocked, on a task
+#:      required to run a new guard in CI. That diff added 8 lines and removed
+#:      none: it made CI stricter, and the gate stopped it.
+#:
+#: So a purely additive change is allowed — it cannot remove a check — while any
+#: diff that deletes or rewrites an existing line still blocks. Weakening
+#: through addition is caught separately: `continue-on-error: true` and the
+#: swallowed-error patterns are matched on added lines wherever they appear.
 PROTECTED = (
     ".github/workflows/",
     ".longhaul/config.yml",
@@ -166,12 +173,14 @@ class CheatGate:
             if path == "/dev/null":
                 continue
 
-            if not is_new and any(path.startswith(p) or p in path for p in PROTECTED):
+            protected = any(path.startswith(p) or p in path for p in PROTECTED)
+            if protected and not is_new and removed.get(path):
                 result.findings.append(
                     Finding(
                         self.name,
                         "block",
-                        "protected path changed — this needs a human, not an agent",
+                        f"{len(removed[path])} line(s) removed from a protected path — "
+                        "adding a check is fine, removing or rewriting one needs a human",
                         path,
                     )
                 )
