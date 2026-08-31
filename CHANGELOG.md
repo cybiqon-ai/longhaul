@@ -12,6 +12,15 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`437ae8d` fix: stop committing reference screenshots to a public repo.**
+  `git add -A` swept `image.png` — a screenshot of a private dashboard showing an
+  account name, an email address and project names — into two commits on a
+  public repository. Root-level images are now gitignored and the file is
+  untracked.
+  **It remains in the history of `35a91fb` and `fcbb727` until that history is
+  rewritten**, which needs a force-push and so is the repository owner's call.
+  The repo had 0 forks, 0 stars and 0 watchers at the time of discovery.
+
 - **`cba9e39` docs: record the interface that was built.** The Next.js
   application — 108 files, the largest change of the day — existed in no
   documentation at all. `.okf/architecture/dashboard.md` now describes both

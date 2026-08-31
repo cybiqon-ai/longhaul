@@ -22,3 +22,13 @@ htmlcov/
 # The exported interface IS committed — it ships in the wheel so users
 # never need Node. Rebuild with `cd web && npm run build`.
 !src/longhaul/ui/static/
+
+# Reference screenshots and scratch images. This is a public repository, and
+# `git add -A` once swept a screenshot of a private dashboard — account name,
+# email and project names — into two commits. Ignore them by default; anything
+# genuinely meant to ship goes in docs/ or web/public/ deliberately.
+/*.png
+/*.jpg
+/*.jpeg
+/*.webp
+/screenshot*
