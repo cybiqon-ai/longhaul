@@ -34,6 +34,32 @@ step. The ledger reader tolerates a torn final line for the same reason.
 
 Without both, the thing is not safe to schedule, which is the entire point.
 
+# The day's work has to land
+
+Found by the first real multi-day run, and the most consequential bug in the
+project so far.
+
+Every task branched from the same starting commit, because nothing ever merged
+back. Four tasks ran; each one rebuilt the Flutter scaffold from nothing; none
+could see the day before it. Test counts went 3 → 12 → 53 → **3**. Every gate
+passed, every build was green, and `longhaul status` reported `done: 2` while the
+project had accumulated nothing at all.
+
+The design assumed a human merging pull requests. With `auto_merge` off and no
+remote configured, nothing ever landed — and what happens then was never
+specified.
+
+So a finished task now **fast-forwards the base branch** onto its own. The pull
+request remains the review artefact and [rollback](operating.md) is how a day is
+taken back. Fast-forward only: if the base moved independently, it refuses and
+says so, because quietly resolving that is how work gets lost. It also refuses
+over uncommitted changes and when the repository is on another branch, while
+ignoring untracked files — `.longhaul/` is full of those during a run.
+
+Worth naming what this was: a green status over work that was not accumulating.
+That is the exact failure the gates exist to catch, one level up, in the
+orchestrator itself.
+
 # Decisions worth knowing
 
 **The cheat gate runs before the build.** There is no point spending a build on a

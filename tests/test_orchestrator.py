@@ -200,14 +200,80 @@ def test_a_successful_task_is_marked_done_and_costed(repo, monkeypatch):
     assert s.tasks["t1"].branch == "longhaul/t1"
 
 
-def test_work_happens_in_a_worktree_never_on_the_main_checkout(repo, monkeypatch):
+def test_work_happens_in_a_worktree_and_then_lands_on_the_base_branch(repo, monkeypatch):
+    """Both halves matter.
+
+    The Coder never edits the main checkout directly — that is what the worktree
+    is for. But the finished work has to land, or tomorrow branches from the same
+    starting commit and cannot see today. On the first real multi-day run it did
+    not land: four tasks each branched from the initial commit, each rebuilt the
+    scaffold from nothing, and every gate passed while the project accumulated
+    nothing.
+    """
     patch_coder_writes(monkeypatch)
     patch_devops(monkeypatch, green())
     s = State()
     p = plan()
+    before = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                            capture_output=True, text=True).stdout.strip()
+
+    out = orchestrator.run_task(FakeDriver(), p, p.task("t1"), s, repo)
+
+    assert out.status == DONE
+    assert (repo / ".longhaul" / "worktrees" / "t1").is_dir(), "work happens in a worktree"
+    after = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"],
+                           capture_output=True, text=True).stdout.strip()
+    assert after != before, "the base branch must advance"
+    assert s.tasks["t1"].integrated is True
+    assert (repo / "new_file.py").exists(), "the work is now on the base branch"
+
+
+def test_the_next_task_can_see_the_previous_one(repo, monkeypatch):
+    """The property the whole change exists for."""
+    patch_devops(monkeypatch, green())
+    p = plan()
+    s = State()
+
+    patch_coder_writes(monkeypatch, "one\n", "from_t1.txt")
     orchestrator.run_task(FakeDriver(), p, p.task("t1"), s, repo)
-    assert (repo / ".longhaul" / "worktrees" / "t1").is_dir()
-    assert not (repo / "new_file.py").exists(), "the main checkout must be untouched"
+
+    seen = {}
+    real = orchestrator.worktree.create
+
+    def create(task_id, root=None, base="HEAD"):
+        tree = real(task_id, root=root, base=base)
+        seen["has_t1_work"] = (tree.path / "from_t1.txt").is_file()
+        (tree.path / "from_t2.txt").write_text("two\n")
+        return tree
+
+    monkeypatch.setattr(orchestrator.worktree, "create", create)
+    orchestrator.run_task(FakeDriver(), p, p.task("t2"), s, repo)
+    assert seen["has_t1_work"], "day 2 must start from a tree that contains day 1"
+
+
+def test_integration_can_be_turned_off(repo, monkeypatch):
+    from longhaul.schema.config import Config
+
+    patch_coder_writes(monkeypatch)
+    patch_devops(monkeypatch, green())
+    s = State()
+    p = plan()
+    orchestrator.run_task(FakeDriver(), p, p.task("t1"), s, repo,
+                          config=Config(integrate=False))
+    assert not (repo / "new_file.py").exists()
+    assert s.tasks["t1"].integrated is False
+
+
+def test_a_failed_task_never_lands(repo, monkeypatch):
+    patch_coder_writes(monkeypatch)
+    patch_devops(monkeypatch, BuildReport(
+        steps=[Step("test", "pytest", 1, "boom", 0.1)]))
+    s = State()
+    p = plan()
+    out = orchestrator.run_task(FakeDriver(), p, p.task("t1"), s, repo)
+    assert out.status == FAILED
+    assert not (repo / "new_file.py").exists(), "broken work must not reach the base branch"
+    assert s.tasks["t1"].integrated is False
 
 
 def test_the_coder_cannot_reach_git_or_the_network(repo, monkeypatch):

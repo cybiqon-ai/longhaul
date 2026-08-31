@@ -170,3 +170,70 @@ def test_a_token_in_a_remote_url_is_not_echoed_into_the_error():
     assert token not in message
     assert "***:***@" in message
     assert "example.com" in message, "the host must survive so the error is useful"
+
+
+# --- landing the work -----------------------------------------------------
+
+def branch_with_work(repo, name, filename="work.txt"):
+    subprocess.run(["git", "-C", str(repo), "checkout", "-qb", name], check=True)
+    (repo / filename).write_text("x\n")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", name], check=True)
+    subprocess.run(["git", "-C", str(repo), "checkout", "-q", "main"], check=True)
+    return name
+
+
+def test_a_finished_branch_fast_forwards_the_base(repo):
+    """Without this every day branches from the same commit and the project
+    never accumulates, while every gate still passes."""
+    branch = branch_with_work(repo, "longhaul/t1")
+    result = gitops.integrate(repo, branch, "main")
+    assert result.advanced
+    assert (repo / "work.txt").is_file()
+    assert result.from_sha != result.to_sha
+
+
+def test_integrating_twice_is_not_an_error(repo):
+    branch = branch_with_work(repo, "longhaul/t1")
+    gitops.integrate(repo, branch, "main")
+    again = gitops.integrate(repo, branch, "main")
+    assert not again.advanced
+    assert "already contained" in again.detail
+
+
+def test_it_refuses_when_the_base_moved_independently(repo):
+    """Quietly resolving a divergence is how work gets lost."""
+    branch = branch_with_work(repo, "longhaul/t1")
+    (repo / "other.txt").write_text("meanwhile\n")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "elsewhere"], check=True)
+
+    result = gitops.integrate(repo, branch, "main")
+    assert not result.advanced
+    assert "not an ancestor" in result.detail
+    assert not (repo / "work.txt").exists(), "nothing may be merged over"
+
+
+def test_it_refuses_when_the_repository_is_on_another_branch(repo):
+    branch = branch_with_work(repo, "longhaul/t1")
+    subprocess.run(["git", "-C", str(repo), "checkout", "-qb", "somewhere-else"], check=True)
+    result = gitops.integrate(repo, branch, "main")
+    assert not result.advanced
+    assert "somewhere-else" in result.detail
+
+
+def test_it_refuses_over_uncommitted_work(repo):
+    branch = branch_with_work(repo, "longhaul/t1")
+    (repo / "README.md").write_text("edited by a human\n")
+    result = gitops.integrate(repo, branch, "main")
+    assert not result.advanced
+    assert "uncommitted" in result.detail
+    assert (repo / "README.md").read_text() == "edited by a human\n"
+
+
+def test_untracked_files_do_not_block_it(repo):
+    """`.longhaul/` is full of untracked state during a run."""
+    branch = branch_with_work(repo, "longhaul/t1")
+    (repo / ".longhaul").mkdir(exist_ok=True)
+    (repo / ".longhaul" / "state.json").write_text("{}")
+    assert gitops.integrate(repo, branch, "main").advanced

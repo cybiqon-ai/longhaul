@@ -12,6 +12,24 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
+- **`3451374` fix(orchestrator): the day's work never landed, so no day could
+  build on the one before.** The most consequential bug so far, and only a real
+  multi-day run could have found it.
+  Every task branched from the same starting commit, because nothing ever merged
+  back. Four tasks ran; each rebuilt the Flutter scaffold from nothing; none
+  could see its predecessor. Test counts went 3 → 12 → 53 → **3**. Every gate
+  passed, every build was green, and `longhaul status` reported `done: 2` while
+  the project had accumulated nothing.
+  The design assumed a human merging pull requests; with `auto_merge` off and no
+  remote, nothing ever landed, and what happens then was never specified. A
+  finished task now fast-forwards the base branch onto its own. The pull request
+  stays the review artefact and `longhaul rollback` is how a day is taken back.
+  Fast-forward only — it refuses when the base moved independently, when the
+  repository is on another branch, or over uncommitted changes, and ignores
+  untracked files because `.longhaul/` is full of them during a run.
+  A green status over work that was not accumulating is exactly the failure the
+  gates exist to catch, one level up, in the orchestrator itself.
+
 - **`437ae8d` fix: stop committing reference screenshots to a public repo.**
   `git add -A` swept `image.png` — a screenshot of a private dashboard showing an
   account name, an email address and project names — into two commits on a

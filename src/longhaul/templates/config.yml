@@ -12,6 +12,12 @@ push: true                    # false keeps every commit local
 # to turn this on yet. Longhaul opens pull requests and waits for you.
 auto_merge: false
 
+# Fast-forward base_branch onto each finished task's branch, so tomorrow builds
+# on today. Without it every day branches from the same starting commit and the
+# project never accumulates, while every gate still passes. Turn it off only if
+# something else is responsible for landing the work.
+integrate: true
+
 limits:
   max_attempts: 3             # attempts at one task before it is abandoned
   identical_failures: 2       # the same error twice running halts the task —

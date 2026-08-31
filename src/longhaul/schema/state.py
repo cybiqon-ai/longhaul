@@ -49,6 +49,8 @@ class TaskState:
     pr_number: int | None = None
     pr_url: str | None = None
     ci_run_id: int | None = None
+    #: Did this task's work land on the base branch?
+    integrated: bool = False
     proof_kind: str | None = None
     proof_detail: str | None = None
     proof_artifacts: list[str] = field(default_factory=list)
@@ -80,6 +82,7 @@ class TaskState:
             "pr_number": self.pr_number,
             "pr_url": self.pr_url,
             "ci_run_id": self.ci_run_id,
+            "integrated": self.integrated,
             "proof_kind": self.proof_kind,
             "proof_detail": self.proof_detail,
             "proof_artifacts": list(self.proof_artifacts),

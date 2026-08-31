@@ -14,6 +14,7 @@ the SHA it just pushed, and treats "no" as a failure rather than as silence.
 
 from __future__ import annotations
 
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +43,16 @@ def tag(worktree: Path, task_id: str, message: str) -> str | None:
         return name
     git("tag", "-a", name, "-m", message, cwd=worktree)
     return name
+
+
+@dataclass
+class Integration:
+    """Whether the day's work landed on the base branch."""
+
+    advanced: bool = False
+    from_sha: str | None = None
+    to_sha: str | None = None
+    detail: str = ""
 
 
 @dataclass
@@ -203,6 +214,59 @@ def ship(
     if run_id and wait:
         result.ci_conclusion, result.ci_jobs = wait_for_ci(client, run_id)
         result.detail = f"CI {result.ci_conclusion} across {result.ci_jobs} job(s)"
+    return result
+
+
+def integrate(root: Path, branch: str, base: str = "main") -> Integration:
+    """Fast-forward the base branch onto a finished task's branch.
+
+    Without this, every day branches from the same starting commit and none of
+    them can see the day before — four parallel universes, each rebuilding the
+    scaffold from nothing, while every gate passes and the status line reports
+    progress. That happened on the first real multi-day run.
+
+    The design assumed a human merging pull requests. With `auto_merge` off and
+    no remote, nothing ever lands, so the base has to advance locally. The pull
+    request stays the review artefact, and `longhaul rollback` is how a day gets
+    taken back.
+
+    Fast-forward only. If the base has moved independently this refuses and says
+    so rather than merging: quietly resolving that is how work gets lost.
+    """
+    result = Integration()
+
+    current = git("rev-parse", "--abbrev-ref", "HEAD", cwd=root, check=False)
+    if current != base:
+        result.detail = f"the repository is on '{current}', not '{base}' — not touching it"
+        return result
+
+    dirty = [
+        line for line in git("status", "--porcelain", cwd=root, check=False).splitlines()
+        if line and not line.startswith("??")
+    ]
+    if dirty:
+        result.detail = f"{len(dirty)} uncommitted change(s) on {base} — not merging over them"
+        return result
+
+    result.from_sha = git("rev-parse", base, cwd=root, check=False)
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", base, branch],
+        cwd=root, capture_output=True, timeout=60,
+    )
+    if ancestor.returncode != 0:
+        result.detail = (
+            f"{base} is not an ancestor of {branch} — it moved independently, "
+            "so this needs a human rather than a merge"
+        )
+        return result
+
+    git("merge", "--ff-only", branch, cwd=root)
+    result.to_sha = git("rev-parse", base, cwd=root, check=False)
+    result.advanced = result.to_sha != result.from_sha
+    result.detail = (
+        f"{base} → {result.to_sha[:12]}" if result.advanced
+        else f"{base} already contained {branch}"
+    )
     return result
 
 

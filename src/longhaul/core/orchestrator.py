@@ -188,6 +188,15 @@ def run_task(
         return _fail(ts, task, f"nothing was committed: {ship.detail}",
                      max_attempts, ts.cost_usd, report=report)
 
+    # The day's work has to land, or tomorrow branches from the same starting
+    # commit and cannot see it.
+    if config.integrate:
+        landed = gitops.integrate(root, tree.branch, config.base_branch)
+        ts.integrated = landed.advanced
+        ship.detail = f"{ship.detail} · {landed.detail}"
+        if not landed.advanced and landed.from_sha != landed.to_sha:
+            ts.findings = [*ts.findings, f"not integrated: {landed.detail}"]
+
     ts.finished_at = now()
     ts.findings = []
 

@@ -52,6 +52,12 @@ class Config:
     #: Show the proof artefact to a model and have it judge against the
     #: criteria. Costs one extra call per task; off makes proof mechanical only.
     inspect_proof: bool = True
+    #: Fast-forward `base_branch` onto each finished task's branch, so the next
+    #: day builds on the last one. Without it every day branches from the same
+    #: starting commit and the project never accumulates — which is what
+    #: happened before this existed. The pull request stays the review artefact;
+    #: `longhaul rollback` is how a day is taken back.
+    integrate: bool = True
     limits: Limits = field(default_factory=Limits)
     notify: Notify = field(default_factory=Notify)
 
