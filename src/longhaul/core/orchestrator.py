@@ -99,7 +99,7 @@ def run_task(
     ts = state.task(task.id)
     ts.day = task.day
 
-    halt = supervisor.check_before(state, ts, task, config)
+    halt = supervisor.check_before(state, ts, task, config, state_io.read_ledger(root))
     if halt:
         ts.status = HALTED
         ts.finished_at = now()

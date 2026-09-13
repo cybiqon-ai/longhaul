@@ -19,7 +19,7 @@ import yaml
 
 from . import __version__, doctor, profiles
 from .core import init as init_mod
-from .core import notify, orchestrator, planner, registry, worktree
+from .core import notify, orchestrator, planner, registry, supervisor, worktree
 from .core import rollback as rollback_mod
 from .core import state as state_io
 from .core.lock import AlreadyRunning, acquire
@@ -228,13 +228,15 @@ def cmd_run(args: argparse.Namespace) -> int:
     print(
         f"\ntasks: {len(plan.tasks)}  done: {counts['done']}  failed: {counts['failed']}  "
         f"parked: {counts['parked']}  halted: {counts['halted']}  "
-        f"pending: {counts['pending']}  spent: ${state.total_cost_usd:.2f}"
+        f"pending: {counts['pending']}  "
+        f"spent: ${supervisor.spent(state, state_io.read_ledger(root)):.2f}"
     )
 
     delivery = notify.send(
         config, plan, state,
         f"{outcome.status}: {outcome.detail.splitlines()[0]}",
         failure=outcome.status not in (DONE, "idle"),
+        ledger=state_io.read_ledger(root),
     )
     if delivery.attempted:
         # A notification that did not land is worse than none, because it looks
@@ -255,7 +257,7 @@ def cmd_report(args: argparse.Namespace) -> int:
         return 0
 
     out = ui_render.write(plan, state, Path(args.out), ledger, root=root)
-    summary = ui_render.summary(plan, state)
+    summary = ui_render.summary(plan, state, ledger)
     print(f"wrote {out}  ({out.stat().st_size:,} bytes)")
     print(
         f"tasks: {summary['tasks']}  done: {summary['done']}  failed: {summary['failed']}  "
@@ -404,7 +406,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         f"\ntasks: {len(plan.tasks)}  done: {counts['done']}  failed: {counts['failed']}  "
         f"parked: {counts['parked']}  pending: {counts['pending']}"
     )
-    print(f"agent calls: {len(ledger)}  spent: ${state.total_cost_usd:.2f}")
+    print(f"agent calls: {len(ledger)}  spent: ${supervisor.spent(state, ledger):.2f}")
     return 0
 
 

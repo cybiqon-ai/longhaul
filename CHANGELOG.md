@@ -12,7 +12,18 @@ useful part of the history to a reader.
 
 ### 2026-09-13
 
-- **`pending` fix(gitops): a checkpoint on discarded work was reported as
+- **`pending` fix(supervisor): the project ceiling forgot money spent on
+  discarded work.** Every ceiling and every screen summed per-task costs from
+  `state.json`. When t2–t4 were discarded and redone, their first attempts'
+  cost left state but stayed in the append-only ledger. `longhaul status`, the
+  report, the web app and the project ceiling all said $15.39. The real bill
+  was $22.89, and the Spend page's own run rows added up to the larger figure.
+  `supervisor.spent()` now takes the larger of ledger and state, and every total
+  goes through it. The daily total is read from the ledger's dated rows, in UTC
+  like the rows themselves. It used to book a task's whole cost on the day it
+  started, using the machine's local date.
+
+- **`11bee6d` fix(gitops): a checkpoint on discarded work was reported as
   the checkpoint.** `tag()` never overwrote an existing tag, and returned its name
   as though it had tagged something. On the Neon Drift run, t2 and t3 were redone
   after their first attempts were discarded. All their `longhaul/done/*` tags,

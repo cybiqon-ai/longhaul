@@ -15,6 +15,7 @@ import html
 import json
 from pathlib import Path
 
+from ..core import supervisor
 from ..schema.plan import Plan
 from ..schema.state import DONE, FAILED, HALTED, IN_PROGRESS, PARKED, SKIPPED, State
 from .data import build
@@ -80,7 +81,7 @@ def write(
     return out
 
 
-def summary(plan: Plan, state: State) -> dict:
+def summary(plan: Plan, state: State, ledger: list[dict] | None = None) -> dict:
     """The headline numbers, for callers that want data rather than markup."""
     counts = state.counts()
     counts["pending"] += sum(1 for t in plan.tasks if t.id not in state.tasks)
@@ -89,7 +90,7 @@ def summary(plan: Plan, state: State) -> dict:
         "target_days": plan.target_days,
         "tasks": len(plan.tasks),
         **{k: counts[k] for k in BUCKETS},
-        "total_cost_usd": state.total_cost_usd,
+        "total_cost_usd": supervisor.spent(state, ledger),
     }
 
 

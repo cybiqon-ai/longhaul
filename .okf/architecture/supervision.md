@@ -38,6 +38,14 @@ is a lower bound, and an unknown model is priced at the most expensive rate.
 `limits.minutes_per_task` was in the same state until 2026-09-13 — documented
 here and read by nothing, the real limit being a hard-coded thirty minutes.
 
+The same was true of money spent on discarded work. Ceilings summed per-task
+costs from `state.json`, and a task that is reset and redone forgets its
+earlier attempts there. On Neon Drift the project ceiling saw $15.39 while the
+ledger held $22.89. **The ledger is the bill.** `supervisor.spent()` takes the
+larger of the two, so neither a lost ledger nor a reset can lower it. The daily
+figure comes from the ledger's dated rows, so a task that runs across midnight
+is split between the two days.
+
 Ceilings are also only **checked before a call**, never during one. The retry of
 the day-3 design task was a single call that took the task to $9.19 against a $6
 per-task ceiling. The next call was refused, correctly, but a call in flight is

@@ -14,6 +14,7 @@ from ..integrations import telegram
 from ..schema.config import Config
 from ..schema.plan import Plan
 from ..schema.state import DONE, FAILED, HALTED, PARKED, State
+from . import supervisor
 
 
 @dataclass(frozen=True)
@@ -23,7 +24,7 @@ class Delivery:
     detail: str
 
 
-def digest(plan: Plan, state: State, headline: str) -> str:
+def digest(plan: Plan, state: State, headline: str, ledger: list[dict] | None = None) -> str:
     counts = state.counts()
     counts["pending"] += sum(1 for t in plan.tasks if t.id not in state.tasks)
     done = counts[DONE]
@@ -34,7 +35,7 @@ def digest(plan: Plan, state: State, headline: str) -> str:
         f"day {done}/{plan.target_days} · "
         f"{done} done · {counts[FAILED]} failed · {counts[PARKED]} parked · "
         f"{counts[HALTED]} halted · {counts['pending']} to go",
-        f"spent ${state.total_cost_usd:.2f}",
+        f"spent ${supervisor.spent(state, ledger):.2f}",
     ]
 
     waiting = [t for t in state.tasks.values() if t.status in (PARKED, HALTED)]
@@ -51,7 +52,10 @@ def digest(plan: Plan, state: State, headline: str) -> str:
     return "\n".join(lines)
 
 
-def send(config: Config, plan: Plan, state: State, headline: str, *, failure: bool) -> Delivery:
+def send(
+    config: Config, plan: Plan, state: State, headline: str, *, failure: bool,
+    ledger: list[dict] | None = None,
+) -> Delivery:
     """Deliver the digest. Never raises — see integrations/telegram.py."""
     backend = (config.notify.backend or "none").lower()
     if backend == "none":
@@ -61,7 +65,7 @@ def send(config: Config, plan: Plan, state: State, headline: str, *, failure: bo
     if backend != "telegram":
         return Delivery(False, False, f"unknown notifier backend {backend!r}")
 
-    result = telegram.send(digest(plan, state, headline))
+    result = telegram.send(digest(plan, state, headline, ledger))
     if result.ok:
         return Delivery(True, True, f"telegram message {result.message_id}")
     return Delivery(True, False, f"telegram failed: {result.error}")

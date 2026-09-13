@@ -16,7 +16,7 @@ from typing import Any
 
 import yaml
 
-from ..core import registry, transcript
+from ..core import registry, supervisor, transcript
 from ..core import state as state_io
 from ..schema.plan import Plan, PlanError
 from ..schema.state import DONE, FAILED, HALTED, PARKED
@@ -69,7 +69,7 @@ def projects() -> dict[str, Any]:
                 "tasks": len(plan.tasks),
                 "counts": counts,
                 "days_done": counts[DONE],
-                "total_cost_usd": state.total_cost_usd,
+                "total_cost_usd": supervisor.spent(state, ledger),
                 "updated_at": state.updated_at,
                 "runs": len(ledger),
                 "needs_you": counts[PARKED] + counts[HALTED] + counts[FAILED],

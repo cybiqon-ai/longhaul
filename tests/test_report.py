@@ -191,3 +191,13 @@ def test_json_output_is_parseable(plan, state):
 def test_write_produces_a_file(tmp_path, plan, state):
     out = render.write(plan, state, tmp_path / "sub" / "report.html")
     assert out.is_file() and out.stat().st_size > 5000
+
+
+def test_spent_is_the_bill_not_what_state_remembers(plan, state):
+    """The Spend page said "$15.39 across N agent runs" while its own run rows
+    added up to $22.89: the tile read state, the rows read the ledger."""
+    ledger = [{"at": "2026-08-31T06:00:00+00:00", "task": "t1", "role": "coder",
+               "cost_usd": state.total_cost_usd + 7.5}]
+    expected = round(state.total_cost_usd + 7.5, 4)
+    assert ui_data.build(plan, state, ledger)["total_cost_usd"] == expected
+    assert render.summary(plan, state, ledger)["total_cost_usd"] == expected

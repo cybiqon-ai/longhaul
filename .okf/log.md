@@ -2,6 +2,12 @@
 
 ## 2026-09-13
 
+* **Update**: ceilings and screens counted spend from `state.json`, which
+  forgets a task's earlier attempts when it is reset. On Neon Drift they said
+  $15.39 against a real $22.89, so the $25 hard stop had $2.11 left, not $9.61.
+  Everything now goes through `supervisor.spent()`, which reads the ledger. See
+  [supervision](/architecture/supervision.md).
+
 * **Update**: checkpoints on **discarded work** were reported as real ones.
   `gitops.tag()` returned an existing tag's name without checking where it
   pointed. On Neon Drift every `longhaul/done/*` tag was on a discarded commit

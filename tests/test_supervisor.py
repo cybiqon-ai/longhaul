@@ -130,3 +130,41 @@ def test_git_shas_are_normalised():
     a = supervisor.fingerprint("failed to apply 8c02271fdb2a")
     b = supervisor.fingerprint("failed to apply 0217e8e346cf")
     assert a == b
+
+
+# --- what the project has actually spent ---------------------------------
+
+def test_spend_on_discarded_attempts_still_counts_against_the_project():
+    """Neon Drift: t2-t4 were discarded and redone. Their first attempts were
+    paid for, stayed in the ledger, and vanished from state, so the project
+    ceiling saw $15.39 when $22.89 had been spent."""
+    s = State()
+    s.task("t2").cost_usd = 1.0
+    ledger = [{"at": "2026-08-31T06:00:00+00:00", "task": "t2", "cost_usd": 4.0},
+              {"at": "2026-09-13T06:00:00+00:00", "task": "t2", "cost_usd": 1.0}]
+    assert supervisor.spent(s, ledger) == 5.0
+    halt = supervisor.check_before(s, s.task("t5"), task(), cfg(cost_usd_total=5.0), ledger)
+    assert halt and "project ceiling reached: $5.00" in halt.reason
+
+
+def test_a_lost_ledger_cannot_lower_the_total():
+    s = State()
+    s.task("t1").cost_usd = 3.0
+    assert supervisor.spent(s, []) == 3.0
+    assert supervisor.spent(s, [{"cost_usd": 1.0}]) == 3.0
+
+
+def test_today_is_what_the_ledger_dated_today():
+    """State books a task's whole cost on the day it started; a task that ran
+    across midnight put yesterday's spend on today's ceiling."""
+    s = State()
+    t = s.task("t3")
+    t.cost_usd, t.started_at = 9.0, "2026-09-13T23:00:00+00:00"
+    ledger = [{"at": "2026-09-13T23:30:00+00:00", "cost_usd": 6.0},
+              {"at": "2026-09-14T00:30:00+00:00", "cost_usd": 3.0}]
+    assert supervisor.spent_today(s, "2026-09-14", ledger) == 3.0
+    assert supervisor.spent_today(s, "2026-09-13", ledger) == 6.0
+
+
+def test_a_malformed_ledger_row_is_not_a_crash():
+    assert supervisor.spent(State(), [{"cost_usd": "n/a"}, {"cost_usd": None}, {}]) == 0.0

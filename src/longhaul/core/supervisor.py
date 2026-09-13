@@ -12,11 +12,10 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass
-from datetime import date
 
 from ..schema.config import Config
 from ..schema.plan import Task
-from ..schema.state import State, TaskState
+from ..schema.state import State, TaskState, now
 
 #: Volatile fragments that make two runs of the *same* failure look different:
 #: temp paths, durations, addresses, timestamps, git SHAs.
@@ -52,8 +51,42 @@ class Halt:
     scope: str  # "task" | "project"
 
 
-def spent_today(state: State, today: str | None = None) -> float:
-    today = today or date.today().isoformat()
+def _billed(entry: dict) -> float:
+    try:
+        return float(entry.get("cost_usd") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def spent(state: State, ledger: list[dict] | None = None) -> float:
+    """Everything this project has cost, for every ceiling and every screen.
+
+    The ledger is the bill: append-only, one row per agent call, and a task
+    that is discarded and redone keeps the rows for its first attempts.
+    `state.json` only remembers each task's current record, and a reset clears
+    it. Summing state alone understated Neon Drift's spend by $7.50, which
+    was money the project ceiling no longer counted. Both are lower bounds on
+    the truth, so this takes the larger: neither a lost ledger nor a reset
+    task can lower it.
+    """
+    billed = sum(_billed(e) for e in ledger or [])
+    return round(max(billed, state.total_cost_usd), 4)
+
+
+def spent_today(
+    state: State, today: str | None = None, ledger: list[dict] | None = None
+) -> float:
+    """What today has cost, where today is the UTC date the ledger is stamped in.
+
+    From the ledger when there is one, because each row is dated when the call
+    happened. State can only put a task's whole cost on the day it started or
+    finished, so a task spanning midnight lands on the wrong day.
+    """
+    today = today or now()[:10]
+    if ledger:
+        return round(
+            sum(_billed(e) for e in ledger if str(e.get("at", "")).startswith(today)), 4
+        )
     return round(
         sum(
             t.cost_usd
@@ -64,18 +97,22 @@ def spent_today(state: State, today: str | None = None) -> float:
     )
 
 
-def check_before(state: State, ts: TaskState, task: Task, config: Config) -> Halt | None:
+def check_before(
+    state: State, ts: TaskState, task: Task, config: Config,
+    ledger: list[dict] | None = None,
+) -> Halt | None:
     """Refuse to start work that a ceiling has already ruled out."""
     limits = config.limits
 
-    if state.total_cost_usd >= limits.cost_usd_total:
+    total = spent(state, ledger)
+    if total >= limits.cost_usd_total:
         return Halt(
-            f"project ceiling reached: ${state.total_cost_usd:.2f} of "
+            f"project ceiling reached: ${total:.2f} of "
             f"${limits.cost_usd_total:.2f} spent",
             "project",
         )
 
-    today = spent_today(state)
+    today = spent_today(state, ledger=ledger)
     if today >= limits.cost_usd_per_day:
         return Halt(
             f"daily ceiling reached: ${today:.2f} of ${limits.cost_usd_per_day:.2f} spent today",

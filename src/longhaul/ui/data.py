@@ -15,6 +15,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from ..core import supervisor
 from ..schema.plan import Plan
 from ..schema.state import DONE, FAILED, HALTED, IN_PROGRESS, PARKED, SKIPPED, State
 from .gallery import collect
@@ -146,7 +147,7 @@ def build(
         "counts": {k: counts[k] for k in BUCKETS},
         "tasks_total": len(tasks),
         "days_done": done,
-        "total_cost_usd": state.total_cost_usd,
+        "total_cost_usd": supervisor.spent(state, ledger),
         "risk_flags": plan.risk_flags,
         "milestones": [
             {"id": m.id, "title": m.title, "days": m.days} for m in plan.milestones
