@@ -516,15 +516,37 @@ def test_minutes_per_task_actually_governs_the_agent_timeout(repo, monkeypatch):
     assert driver.requests[0].timeout_s == 45 * 60
 
 
-def test_a_timed_out_attempt_resumes_its_session_on_retry(repo, monkeypatch):
+def test_a_timed_out_attempt_retries_in_a_fresh_session(repo, monkeypatch):
+    """Resuming a session that ran out of time re-reads its whole conversation on
+    every turn. On the design task that cost $6.43 against $2.48 for a fresh run.
+    The files are safe in the worktree either way, so the retry starts fresh and
+    is told to read them."""
     patch_coder_writes(monkeypatch)
     patch_devops(monkeypatch, green())
     driver = FakeDriver(
-        AgentResult(ok=False, text="", session_id="sess-t", error="timed out after 1800s"),
-        AgentResult(ok=True, text="", session_id="sess-t", cost_usd=0.1),
+        AgentResult(ok=False, text="", session_id="sess-t", exit_code=124,
+                    error="timed out after 1800s"),
+        AgentResult(ok=True, text="", session_id="sess-new", cost_usd=0.1),
     )
     s = State()
     p = plan()
     orchestrator.run_task(driver, p, p.task("t1"), s, repo)
     orchestrator.run_task(driver, p, p.task("t1"), s, repo)
-    assert driver.requests[1].resume_session == "sess-t"
+    retry = driver.requests[1]
+    assert retry.resume_session is None
+    assert "still in this worktree" in retry.prompt
+
+
+def test_a_gate_failure_still_resumes_its_session(repo, monkeypatch):
+    """A small, specific rejection is worth carrying into the same conversation."""
+    patch_coder_writes(monkeypatch)
+    patch_devops(monkeypatch, BuildReport(steps=[Step("test", "pytest", 1, "boom", 0.1)]))
+    driver = FakeDriver(
+        AgentResult(ok=True, text="", session_id="sess-g", cost_usd=0.1),
+        AgentResult(ok=True, text="", session_id="sess-g", cost_usd=0.1),
+    )
+    s = State()
+    p = plan()
+    orchestrator.run_task(driver, p, p.task("t1"), s, repo)
+    orchestrator.run_task(driver, p, p.task("t1"), s, repo)
+    assert driver.requests[1].resume_session == "sess-g"

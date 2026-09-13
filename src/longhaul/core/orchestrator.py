@@ -31,6 +31,8 @@ from . import inspect as inspect_mod
 from . import state as state_io
 
 DEFAULT_MAX_ATTEMPTS = 3
+#: The driver's exit code for a call it killed at its time limit.
+TIMED_OUT = 124
 
 
 def CliDriverRetries(result) -> list[str]:  # noqa: N802 - reads as a helper
@@ -133,7 +135,15 @@ def run_task(
         )
     )
     retries = CliDriverRetries(result)
-    ts.coder_session = result.session_id or ts.coder_session
+    if result.exit_code == TIMED_OUT:
+        # Do not resume a session that ran out of time. Its files are safe in
+        # the worktree whatever happens; what resuming carries is the whole
+        # conversation, which is re-read on every turn. On the design task a
+        # resumed session cost $6.43, against $2.48 for a fresh run of the
+        # same task. A fresh session reads the worktree instead.
+        ts.coder_session = None
+    else:
+        ts.coder_session = result.session_id or ts.coder_session
     ts.cost_usd += result.cost_usd
     state_io.append_ledger(
         {
@@ -292,7 +302,17 @@ def _coder_prompt(plan: Plan, task: Task, profile: dict, previous_error: str | N
     if commands:
         lines += ["", "## Run these yourself before you finish", ""]
         lines += [f"  {k}: {v}" for k, v in commands.items() if k != "test_count"]
-    if previous_error:
+    if previous_error and "timed out after" in previous_error:
+        lines += [
+            "",
+            "## This is a retry. Your previous attempt ran out of time.",
+            "",
+            "Its work is still in this worktree. Read what is already there and",
+            "continue from it rather than starting the task over. Finish the",
+            "remaining acceptance criteria and keep the change as small as the",
+            "task allows.",
+        ]
+    elif previous_error:
         lines += [
             "",
             "## This is a retry. Your previous attempt failed with:",

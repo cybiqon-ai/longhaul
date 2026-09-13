@@ -81,8 +81,8 @@ class CliDriver:
             self._persist(request, partial)
             events = self._events(partial)
             # The stream announces the session id in its first event, long
-            # before the result. Keeping it means a retry can resume the work
-            # the agent had already done instead of starting the task again.
+            # before the result. Keeping it ties the ledger row to its
+            # transcript; whether a retry resumes it is the orchestrator's call.
             session = next((e["session_id"] for e in events if e.get("session_id")), None)
             return AgentResult(
                 ok=False,

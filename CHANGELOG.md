@@ -12,7 +12,24 @@ useful part of the history to a reader.
 
 ### 2026-09-13
 
-- **`39a0303` fix(driver): a timed-out run cost $0.00, according to the ledger.**
+- **`pending` fix(orchestrator): a timed-out task retries in a fresh session.**
+  The day-3 design task timed out, and its retry resumed the same session. It
+  cost $6.43, against $2.48 for a fresh run of the same kind of task: a resumed
+  session re-reads its entire conversation, several million cached tokens, on
+  every turn. It gained nothing, since the files are in the worktree whatever
+  happens. A retry after a timeout now starts fresh and is told to read the
+  worktree and continue. A retry after a gate or build failure still resumes,
+  because a short, specific rejection is worth keeping in context. The session id
+  stays in the ledger for audit.
+  *Also found:* ceilings are checked before a call, never during one. That call
+  took day 3 to $9.19 against a $6 per-task ceiling. The next call is refused,
+  which is correct, but one call can overshoot. Recorded, not yet changed.
+  *Also fixed:* 24 of the hashes in this changelog named commits that did not
+  exist. Each was the hash from before the changelog was amended into its own
+  commit. They are corrected, the newest entry now says `pending` until the next
+  commit fills it in, and `tests/test_changelog.py` checks every hash.
+
+- **`a3788cb` fix(driver): a timed-out run cost $0.00, according to the ledger.**
   The CLI reports cost only in its final result event, which a timed-out call
   never emits. A thirty-minute design task — about $2.76 — was logged as free,
   and every cost ceiling was blind to it. The cost is now estimated from the
@@ -20,7 +37,7 @@ useful part of the history to a reader.
   `cost_estimated` in the ledger. It is a lower bound, and an unknown model is
   priced at the most expensive rate so a ceiling errs towards stopping early.
 
-- **`8ab8822` fix(supervisor): `minutes_per_task` now actually limits a task.**
+- **`4686ab2` fix(supervisor): `minutes_per_task` now actually limits a task.**
   The config documented a 60-minute ceiling that no code read; the real limit
   was a hard-coded 30 minutes in the driver. Found watching a design task run
   toward it. A timed-out call also discarded its session id, so a retry started
@@ -32,7 +49,7 @@ useful part of the history to a reader.
 
 ### 2026-08-30
 
-- **`edba5ed` fix(gates): adding a CI step is not weakening CI.** With the
+- **`a61bb0e` fix(gates): adding a CI step is not weakening CI.** With the
   integration fix in place, day 2 branched from a tree that already had day 1's
   workflow — and its diff, **8 lines added and 0 removed**, was blocked as a
   "protected path changed". The task's criteria required running a new guard in
@@ -43,7 +60,7 @@ useful part of the history to a reader.
   that deletes or rewrites an existing line still blocks. Weakening by addition
   is caught separately, `continue-on-error: true` included.
 
-- **`3451374` fix(orchestrator): the day's work never landed, so no day could
+- **`6156777` fix(orchestrator): the day's work never landed, so no day could
   build on the one before.** The most consequential bug so far, and only a real
   multi-day run could have found it.
   Every task branched from the same starting commit, because nothing ever merged
@@ -61,7 +78,7 @@ useful part of the history to a reader.
   A green status over work that was not accumulating is exactly the failure the
   gates exist to catch, one level up, in the orchestrator itself.
 
-- **`437ae8d` fix: stop committing reference screenshots to a public repo.**
+- **`06c6d84` fix: stop committing reference screenshots to a public repo.**
   `git add -A` swept `image.png` — a screenshot of a private dashboard showing an
   account name, an email address and project names — into two commits on a
   public repository. Root-level images are now gitignored and the file is
@@ -70,7 +87,7 @@ useful part of the history to a reader.
   rewritten**, which needs a force-push and so is the repository owner's call.
   The repo had 0 forks, 0 stars and 0 watchers at the time of discovery.
 
-- **`cba9e39` docs: record the interface that was built.** The Next.js
+- **`36df40f` docs: record the interface that was built.** The Next.js
   application — 108 files, the largest change of the day — existed in no
   documentation at all. `.okf/architecture/dashboard.md` now describes both
   surfaces and the three bugs each of which was invisible to the layer below it
@@ -78,7 +95,7 @@ useful part of the history to a reader.
   what `longhaul ui` actually is. The repo's own `CLAUDE.md` requires the bundle
   to move in the same pass as the code, and it did not.
 
-- **`1530bd8` fix(web): the Projects page rendered 232px wide.** The shell
+- **`fcbb727` fix(web): the Projects page rendered 232px wide.** The shell
   applied `md:grid-cols-[232px_1fr]` unconditionally, but Projects has no
   sidebar — so its single child landed in the *first* column and the whole page
   was squeezed into the sidebar's width. Everything was correctly styled and
@@ -87,7 +104,7 @@ useful part of the history to a reader.
   The columns are now conditional on there being a sidebar, and two tests assert
   Projects has none while a project page keeps its own.
 
-- **`8692054` fix(web): the interface rendered completely unstyled.** Every
+- **`f56013c` fix(web): the interface rendered completely unstyled.** Every
   utility was written as `bg-[--color-panel]` — Tailwind 3 arbitrary-value
   syntax. **Tailwind 4 does not error on it; it silently generates nothing.** So
   the build succeeded, a 19 KB stylesheet was emitted and linked, and the page
@@ -103,7 +120,7 @@ useful part of the history to a reader.
   goes red — the first attempt at that verification silently patched nothing and
   proved nothing, which is the same shape of bug again.
 
-- **`17faa21` fix(web): make the export reproducible, so the staleness check
+- **`7ba7de9` fix(web): make the export reproducible, so the staleness check
   means something.** CI's "is the committed export stale?" check failed on a
   clean rebuild. Next generates a **random build id per build** and bakes it into
   asset paths and every emitted HTML file, so an identical rebuild produced a
@@ -113,7 +130,7 @@ useful part of the history to a reader.
   rebuild now produces a **byte-identical** export, which makes the CI check real
   and the wheel reproducible.
 
-- **`78b2a76` feat(web): a Next.js application, bundled into the wheel.** Next 16,
+- **`6ec867b` feat(web): a Next.js application, bundled into the wheel.** Next 16,
   React 19, Tailwind 4, TanStack Table, Recharts. Routes: `/` lists every project
   on this machine, and `/p/<id>` carries Overview, Timeline, Tasks, Agent runs,
   **Chats**, Spend, Proof and Risks.
@@ -135,7 +152,7 @@ useful part of the history to a reader.
   the prerendered file, and the client reads the real id from `location.pathname`
   rather than from params that say `_`.
 
-- **`90989e6` feat(api): a read-only HTTP surface, and test isolation that was
+- **`e70ecf5` feat(api): a read-only HTTP surface, and test isolation that was
   missing.** `/api/projects` for the home screen, `/api/projects/<id>` for the
   full payload, `/api/projects/<id>/transcript/<path>` for one stored run.
   Nothing writes — actions belong to a shared command layer both this and the
@@ -151,7 +168,7 @@ useful part of the history to a reader.
   or not the test knows the registry exists — and a test asserts the real home is
   unreachable. The polluted registry was cleaned.
 
-- **`325da33` feat(transcripts,registry): the data a real interface needs.**
+- **`b06d42a` feat(transcripts,registry): the data a real interface needs.**
   Backend groundwork for a Next.js frontend with Home and Chats routes, done
   first so nothing renders against mock data.
   The driver now reads `--output-format stream-json`, which carries everything
@@ -169,7 +186,7 @@ useful part of the history to a reader.
   does not stop the tool working on the project you are standing in.
   Also `longhaul projects` to list, add and forget.
 
-- **`48c001e` feat(ui): an application, not a report.** Rebuilt as a proper
+- **`35a91fb` feat(ui): an application, not a report.** Rebuilt as a proper
   shell — sidebar navigation, top bar, dense sortable and filterable tables —
   after a Langfuse screenshot made clear the previous page read as a printout
   rather than a tool. Seven views: Overview, Timeline, Tasks, **Agent runs**,
@@ -186,7 +203,7 @@ useful part of the history to a reader.
   Still no npm, no bundler, no framework, and still exactly one runtime
   dependency. Charts are inline SVG.
 
-- **`1485b50` feat(assets): licence provenance as a gate, not paperwork.** The
+- **`1d97e16` feat(assets): licence provenance as a gate, not paperwork.** The
   Assets role prefers generating over sourcing — a generated asset has no licence
   question, no attribution and no supply chain — and never takes anything whose
   licence it cannot state. `gates/provenance.py` blocks any newly added image,
@@ -198,7 +215,7 @@ useful part of the history to a reader.
   down at the time.
   **This completes v0.3.**
 
-- **`b1ddab9` feat(gallery): every day's proof in one strip, and a second
+- **`eaa4ed9` feat(gallery): every day's proof in one strip, and a second
   profile.** The gallery is the most persuasive thing this tool produces —
   fourteen screenshots of an application visibly appearing, one per day, each
   something you can look at rather than a number you have to trust. In
@@ -214,7 +231,7 @@ useful part of the history to a reader.
   the real build and photographs the page, because `npm run build` passing is not
   evidence the page loads.
 
-- **`4ad3a0c` feat(proof): does it actually run?** Tests passing is not evidence
+- **`19103a6` feat(proof): does it actually run?** Tests passing is not evidence
   an application works — a Flutter app can compile, lint clean and pass every
   test while showing a grey screen. Each task declares what proof means, the
   profile says how to produce it, and the artefact lands in
@@ -234,7 +251,7 @@ useful part of the history to a reader.
   a failed precondition means this machine cannot demonstrate anything, which is
   a different fact from the change being broken.
 
-- **`3a126dd` feat(designer): a design system, and `needs_human` that actually
+- **`8eb933c` feat(designer): a design system, and `needs_human` that actually
   does the work.** The Designer role produces one tokens document — palette roles
   with contrast ratios, type scale, spacing scale, motion, tone — plus the
   implementation file the code imports, because a design system that exists only
@@ -249,7 +266,7 @@ useful part of the history to a reader.
   now run, commit their artefacts, and *then* park for the decision. Dependents
   still wait, which is the conservative and correct default.
 
-- **`66d0b72` feat(ui): the report, live on localhost.** `longhaul ui` serves it
+- **`7a5ffb9` feat(ui): the report, live on localhost.** `longhaul ui` serves it
   from stdlib `http.server` on `:4321` with SSE — no framework, no build step,
   still one runtime dependency. The server watches `.longhaul/` and pushes; the
   browser never polls, and swaps the `<main>` body rather than reloading so
@@ -273,7 +290,7 @@ useful part of the history to a reader.
   This completes v0.2 — every command in the roadmap through v0.2 now ships, and
   the placeholder machinery that made unimplemented commands exit 2 is gone.
 
-- **`91c97cb` feat(rollback): undo a day, with checkpoints to undo it to.**
+- **`52e2737` feat(rollback): undo a day, with checkpoints to undo it to.**
   Every completed task now leaves an annotated git tag, and `longhaul rollback N`
   puts the repository back to the last checkpoint before day N, returning that
   day's tasks and everything after to `pending` so the next run genuinely retries
@@ -283,7 +300,7 @@ useful part of the history to a reader.
   Tags are never moved, so re-running a finished day cannot shift a checkpoint
   someone may already have rolled back to.
 
-- **`82bad72` feat(report): a self-contained HTML page from `.longhaul/`.**
+- **`8285c00` feat(report): a self-contained HTML page from `.longhaul/`.**
   `longhaul report` writes one file with the CSS inlined and zero external
   resources, so it opens from `file://`, from a CI artifact, or on a machine that
   never ran the agent — equally a live monitor and a post-mortem. `--json` prints
@@ -297,7 +314,7 @@ useful part of the history to a reader.
   *Also found by a test:* the page hid the reason a task was **parked**, which is
   precisely the task a human has to act on.
 
-- **`0c884f4` feat(init): prepare a repository, and refuse if it is not ready.**
+- **`2605038` feat(init): prepare a repository, and refuse if it is not ready.**
   `longhaul init` writes `.longhaul/config.yml`, a `target.md` skeleton and the
   right `.gitignore` lines, then runs `doctor` and prints the next four commands.
   It never overwrites an existing file and is idempotent. `--schedule
@@ -312,7 +329,7 @@ useful part of the history to a reader.
   same drift hazard as a config template that no longer matches the code. There
   is now one copy, shipped as package data.
 
-- **`b4c516c` fix(kill): signal the process group, not just the orchestrator.**
+- **`0de7e95` fix(kill): signal the process group, not just the orchestrator.**
   Killing the parent alone orphans the agent it spawned — verified directly:
   SIGTERM to a parent, and its child survives reparented to init. For this tool
   that means a `claude -p` still running and still spending with no ceiling
@@ -320,7 +337,7 @@ useful part of the history to a reader.
   The lock now records the pgid alongside the pid, `kill` signals the group, and
   it refuses to clear the lock while the group still has members.
 
-- **`ed24cee` feat(supervisor,notify): ceilings, loop detection, a lock, and a
+- **`4a0e2d9` feat(supervisor,notify): ceilings, loop detection, a lock, and a
   Telegram digest.** The last pieces before this is safe to leave on a cron.
   `.longhaul/config.yml` with conservative defaults (`auto_merge: false`, and no
   supported way to change it); project/daily/per-task cost ceilings and an
@@ -338,7 +355,7 @@ useful part of the history to a reader.
   proves nothing, rewritten to actually check the shipped config template against
   the code's defaults.
 
-- **`1c8c71e` feat(gitops): commit, push, open a PR — and prove CI actually
+- **`36f23a1` feat(gitops): commit, push, open a PR — and prove CI actually
   ran.** `core/gitops.py` plus a stdlib-`urllib` GitHub client. Conventional
   commit derived from the task, PR body listing the acceptance criteria and which
   gates ran, `--no-push` to stay local, PR links surfaced in `longhaul status`.

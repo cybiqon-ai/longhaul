@@ -2,6 +2,21 @@
 
 ## 2026-09-13
 
+* **Update**: a timed-out task now **retries in a fresh session** rather than
+  resuming. The resumed day-3 retry cost $6.43, against $2.48 for a fresh design
+  run, because a resumed session re-reads its entire conversation on every turn,
+  and it gained nothing: the files survive in the worktree regardless. Gate and
+  build failures still resume. See [supervision](/architecture/supervision.md).
+
+* **Update**: ceilings are **pre-checks only**. The single resumed call took day
+  3 to $9.19 past a $6 per-task ceiling; the next call is refused, but a call in
+  flight is never stopped for spend. Recorded in
+  [supervision](/architecture/supervision.md), not yet changed.
+
+* **Update**: 24 commit hashes in `CHANGELOG.md` named commits that do not
+  exist. Each was written before the changelog was amended into its own commit.
+  Corrected, and now checked by a test.
+
 * **Update**: `limits.minutes_per_task` was **read by nothing**. The config
   documented a 60-minute ceiling and [supervision](/architecture/supervision.md)
   listed it; the real limit was a hard-coded 1,800 s default in the driver.

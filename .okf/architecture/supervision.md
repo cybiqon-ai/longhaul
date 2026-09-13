@@ -4,7 +4,7 @@ title: Supervision
 description: Ceilings, loop detection, a lock and a kill switch — all enforced outside the agent, because a model told to respect a budget will report having respected the budget.
 resource: https://github.com/cybiqon-ai/longhaul/tree/main/src/longhaul/core/supervisor.py
 tags: [architecture, safety, budgets, scheduling, implemented]
-timestamp: 2026-08-30T00:00:00Z
+timestamp: 2026-09-13T00:00:00Z
 ---
 
 # Overview
@@ -37,6 +37,22 @@ is a lower bound, and an unknown model is priced at the most expensive rate.
 
 `limits.minutes_per_task` was in the same state until 2026-09-13 — documented
 here and read by nothing, the real limit being a hard-coded thirty minutes.
+
+Ceilings are also only **checked before a call**, never during one. The retry of
+the day-3 design task was a single call that took the task to $9.19 against a $6
+per-task ceiling. The next call was refused, correctly, but a call in flight is
+never stopped for spend. The worst overshoot is one call's cost. A ceiling that
+matters to the pound needs headroom of about one call.
+
+# Retrying after a timeout
+
+A timed-out attempt is retried in a **fresh session**, not resumed. Resuming
+carries the whole conversation, which is re-read on every turn, and the files the
+attempt wrote are in the worktree anyway. On day 3 the resumed retry cost $6.43
+where a fresh design run had cost $2.48. The fresh session is told the previous
+attempt ran out of time and to continue from the worktree. A gate or build
+failure still resumes its session: that rejection is short, specific, and worth
+keeping in context.
 
 # Loop detection, and the mistake in it
 
