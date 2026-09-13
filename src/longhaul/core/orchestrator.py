@@ -143,6 +143,7 @@ def run_task(
             "attempt": ts.attempts,
             "session_id": result.session_id,
             "cost_usd": round(result.cost_usd, 4),
+            "cost_estimated": result.cost_estimated,
             "duration_s": round(time.monotonic() - started, 1),
             "ok": result.ok,
             "retries": retries,

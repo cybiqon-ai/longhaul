@@ -25,6 +25,9 @@ class AgentResult:
     structured: dict[str, Any] | None = None
     session_id: str | None = None
     cost_usd: float = 0.0
+    #: True when the CLI never reported a cost and `cost_usd` was estimated
+    #: from the partial stream instead. Shown wherever the figure is.
+    cost_estimated: bool = False
     duration_s: float = 0.0
     exit_code: int = 0
     error: str | None = None

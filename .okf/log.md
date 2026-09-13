@@ -8,6 +8,16 @@
   Found watching the design task approach 30 minutes. The Coder's timeout now
   comes from the config, with a test asserting it.
 
+* **Update**: a call that times out never emits a result event, so it never
+  reports `total_cost_usd` — and it was recorded as **$0.00**. The design task
+  that ran thirty minutes cost roughly $2.76 at list price, and every ceiling in
+  [supervision](/architecture/supervision.md) was blind to it. `driver/pricing.py`
+  now estimates the cost from the usage the partial stream carried, deduplicated
+  per API turn because the CLI repeats a turn's usage on every content block, and
+  the ledger flags it `cost_estimated`. It is a lower bound: streamed usage
+  undercounts output tokens. An unknown model is priced at the most expensive
+  rate, so a ceiling errs towards stopping early.
+
 * **Update**: a timed-out agent call discarded its session id, so the retry
   started the task over. The stream names the session in its very first event,
   so it is now recovered from the partial output and the retry resumes the work

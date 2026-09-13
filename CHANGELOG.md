@@ -12,6 +12,14 @@ useful part of the history to a reader.
 
 ### 2026-09-13
 
+- **`39a0303` fix(driver): a timed-out run cost $0.00, according to the ledger.**
+  The CLI reports cost only in its final result event, which a timed-out call
+  never emits. A thirty-minute design task — about $2.76 — was logged as free,
+  and every cost ceiling was blind to it. The cost is now estimated from the
+  partial stream's usage, deduplicated per API turn, and flagged
+  `cost_estimated` in the ledger. It is a lower bound, and an unknown model is
+  priced at the most expensive rate so a ceiling errs towards stopping early.
+
 - **`8ab8822` fix(supervisor): `minutes_per_task` now actually limits a task.**
   The config documented a 60-minute ceiling that no code read; the real limit
   was a hard-coded 30 minutes in the driver. Found watching a design task run

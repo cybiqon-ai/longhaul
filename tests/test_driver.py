@@ -189,3 +189,28 @@ def test_a_timeout_still_writes_the_partial_transcript(tmp_path, monkeypatch):
     path = tmp_path / "t.jsonl"
     CliDriver().run(req(transcript_path=str(path)))
     assert path.read_text() == partial
+
+
+def test_a_timed_out_run_reports_an_estimated_cost_not_zero(monkeypatch):
+    """Zero made a thirty-minute run invisible to every cost ceiling."""
+    import subprocess
+
+    partial = stream(
+        {"type": "system", "subtype": "init", "session_id": "s"},
+        {"type": "assistant", "message": {"id": "m1", "model": "claude-opus-5",
+                                          "usage": {"cache_read_input_tokens": 2_000_000}}})
+
+    def boom(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="claude", timeout=5, output=partial.encode())
+
+    monkeypatch.setattr("longhaul.driver.cli_driver.subprocess.run", boom)
+    result = CliDriver().run(req())
+    assert result.cost_estimated is True
+    assert result.cost_usd == 1.0  # 2M cache reads at $0.50/M
+
+
+def test_a_reported_cost_is_not_marked_as_an_estimate(monkeypatch):
+    monkeypatch.setattr(
+        "longhaul.driver.cli_driver.subprocess.run", lambda *a, **k: FakeProc(stream(RESULT)))
+    result = CliDriver().run(req())
+    assert result.cost_usd == 0.42 and result.cost_estimated is False

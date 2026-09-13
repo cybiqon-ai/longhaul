@@ -27,6 +27,17 @@ is never invoked, because a ceiling that reports after the fact is not a ceiling
 needs a human to raise a ceiling or fix the cause. Neither is *settled*, so
 dependents stay blocked.
 
+# A ceiling can only count what it sees
+
+A call that times out or dies never emits a result event, so it never reports a
+cost. It was recorded as $0.00: a thirty-minute design run, about $2.76, went
+straight past every ceiling above. The driver now estimates a missing cost from
+the partial stream's usage and the ledger marks it `cost_estimated`. The estimate
+is a lower bound, and an unknown model is priced at the most expensive rate.
+
+`limits.minutes_per_task` was in the same state until 2026-09-13 — documented
+here and read by nothing, the real limit being a hard-coded thirty minutes.
+
 # Loop detection, and the mistake in it
 
 Each failure is fingerprinted — volatile fragments normalised away, then hashed —

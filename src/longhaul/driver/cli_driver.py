@@ -20,6 +20,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from . import pricing
 from .base import AgentRequest, AgentResult
 
 # Error categories that arrive on `system/api_retry` events. A 429 is the
@@ -87,6 +88,8 @@ class CliDriver:
                 ok=False,
                 text="",
                 session_id=session,
+                cost_usd=pricing.estimate(events),
+                cost_estimated=True,
                 duration_s=time.monotonic() - started,
                 exit_code=124,
                 error=f"timed out after {request.timeout_s}s",
@@ -104,6 +107,9 @@ class CliDriver:
             return AgentResult(
                 ok=False,
                 text=proc.stdout.strip()[-2000:],
+                session_id=next((e["session_id"] for e in events if e.get("session_id")), None),
+                cost_usd=pricing.estimate(events),
+                cost_estimated=bool(events),
                 duration_s=elapsed,
                 exit_code=proc.returncode,
                 error=f"no result event (exit {proc.returncode}): {proc.stderr.strip()[:400]}",
