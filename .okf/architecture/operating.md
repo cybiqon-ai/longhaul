@@ -4,7 +4,7 @@ title: Operating a project
 description: init, report and rollback — getting a repository ready, seeing what happened, and undoing a day when it went wrong.
 resource: https://github.com/cybiqon-ai/longhaul/tree/main/src/longhaul/core/init.py
 tags: [architecture, cli, onboarding, reporting, rollback, implemented]
-timestamp: 2026-08-30T00:00:00Z
+timestamp: 2026-09-13T00:00:00Z
 ---
 
 # Overview
@@ -66,8 +66,22 @@ genuinely retries them. Rolling back day 1 is refused: there is no checkpoint
 before the first day, and silently discarding a whole repository is not
 something a tool should do on a one-word command.
 
-Tags are never moved. Re-running a finished day must not shift a checkpoint
-someone may already have rolled back to.
+A tag already in the branch's history is never moved. Re-running a finished
+day must not shift a checkpoint someone may already have rolled back to.
+
+A tag **outside** that history marks discarded work, and until 2026-09-13 it
+was reported as the checkpoint anyway. `tag()` saw the name existed and returned
+it without creating anything. On the Neon Drift run, t2 and t3 were redone
+after their first attempts were discarded. All three checkpoints (t2, t3 and a
+t4 that never finished again) still pointed at the thrown-away commits, and t1
+had none. `longhaul rollback` would have reset the branch onto work nobody kept.
+Now a stale tag is kept as `longhaul/superseded/<task>/<sha>` and the task is
+tagged where it landed, and rollback refuses a checkpoint outside the branch's
+history.
+
+There is still **no command to settle a parked task.** When the author makes a
+reserved decision, the task is marked done by hand. `longhaul approve` belongs
+to the shared command layer planned for v0.4.
 
 # See also
 

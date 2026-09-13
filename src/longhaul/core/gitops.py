@@ -31,16 +31,43 @@ def tag_name(task_id: str) -> str:
     return f"longhaul/done/{task_id}"
 
 
+def superseded_name(task_id: str, sha: str) -> str:
+    return f"longhaul/superseded/{task_id}/{sha[:7]}"
+
+
+def in_history(ref: str, cwd: Path, head: str = "HEAD") -> bool:
+    """Whether `ref` is a commit `head` was built on."""
+    proc = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", ref, head],
+        cwd=cwd, capture_output=True, text=True, timeout=60,
+    )
+    return proc.returncode == 0
+
+
 def tag(worktree: Path, task_id: str, message: str) -> str | None:
     """Mark a completed task so `longhaul rollback` has somewhere to go back to.
 
-    Annotated, so the tag carries who and when. Never overwrites an existing
-    tag: re-running a finished day must not silently move a checkpoint someone
-    may already have rolled back to.
+    Annotated, so the tag carries who and when. A tag already in this history is
+    never moved: re-running a finished day must not silently shift a checkpoint
+    someone may already have rolled back to.
+
+    A tag *outside* this history is a different matter. It marks work that was
+    thrown away, and reporting it as this task's checkpoint was a lie: on a real
+    run, all three checkpoints pointed at discarded commits after the tasks were
+    redone, so `longhaul rollback` would have restored work nobody kept. It is
+    kept under `longhaul/superseded/…` so nothing is lost, and the task is tagged
+    where it actually landed.
     """
     name = tag_name(task_id)
     if git("tag", "--list", name, cwd=worktree, check=False).strip():
-        return name
+        tagged = git("rev-list", "-n", "1", name, cwd=worktree)
+        if in_history(tagged, worktree):
+            return name
+        old = superseded_name(task_id, tagged)
+        if not git("tag", "--list", old, cwd=worktree, check=False).strip():
+            git("tag", "-a", old, tagged, "-m",
+                f"{name} pointed here; this history no longer contains it", cwd=worktree)
+        git("tag", "-d", name, cwd=worktree)
     git("tag", "-a", name, "-m", message, cwd=worktree)
     return name
 

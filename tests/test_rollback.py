@@ -143,3 +143,46 @@ def test_a_tag_is_not_silently_moved(repo):
         ["git", "-C", str(repo), "rev-list", "-n", "1", gitops.tag_name("t1")],
         capture_output=True, text=True).stdout.strip()
     assert first == second
+
+
+def _rev(repo, ref):
+    return subprocess.run(["git", "-C", str(repo), "rev-list", "-n", "1", ref],
+                          capture_output=True, text=True).stdout.strip()
+
+
+def _discard_and_redo_t3(repo):
+    """Throw day 3 away and do it again, as a real run did after a bad start."""
+    git = lambda *a: subprocess.run(["git", "-C", str(repo), *a], check=True,  # noqa: E731
+                                    capture_output=True)
+    discarded = _rev(repo, "HEAD")
+    git("reset", "-q", "--hard", "HEAD~1")
+    (repo / "t3.txt").write_text("day 3, second attempt\n")
+    git("add", "-A")
+    git("commit", "-qm", "t3 again")
+    return discarded
+
+
+def test_a_tag_on_discarded_work_is_superseded_not_reported_as_the_checkpoint(repo):
+    """The run that found this: t2 and t3 were redone, and their checkpoints
+    still pointed at the first, discarded attempts."""
+    discarded = _discard_and_redo_t3(repo)
+    gitops.tag(repo, "t3", "day 3: Levels")
+    assert _rev(repo, gitops.tag_name("t3")) == _rev(repo, "HEAD")
+    kept = gitops.superseded_name("t3", discarded)
+    assert _rev(repo, kept) == discarded, "the old checkpoint is kept, not lost"
+
+
+def test_rollback_refuses_a_checkpoint_outside_this_history(repo):
+    _discard_and_redo_t3(repo)
+    # Point t2's checkpoint at something this branch never contained.
+    subprocess.run(["git", "-C", str(repo), "checkout", "-q", "--orphan", "stray"], check=True)
+    (repo / "stray.txt").write_text("x\n")
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-qm", "stray"], check=True)
+    subprocess.run(["git", "-C", str(repo), "tag", "-f", "-a", gitops.tag_name("t2"),
+                    "-m", "stray"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo), "checkout", "-q", "main"], check=True)
+
+    r = rollback.plan_rollback(plan(), state_with_all_done(), 3, repo)
+    assert not r.ok
+    assert "not in this branch's history" in r.problems[0]

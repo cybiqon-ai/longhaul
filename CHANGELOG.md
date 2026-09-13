@@ -12,7 +12,19 @@ useful part of the history to a reader.
 
 ### 2026-09-13
 
-- **`pending` fix(orchestrator): a timed-out task retries in a fresh session.**
+- **`pending` fix(gitops): a checkpoint on discarded work was reported as
+  the checkpoint.** `tag()` never overwrote an existing tag, and returned its name
+  as though it had tagged something. On the Neon Drift run, t2 and t3 were redone
+  after their first attempts were discarded. All their `longhaul/done/*` tags,
+  and a t4 tag, still pointed at the discarded commits, and t1 had no tag at all.
+  `longhaul rollback` would have restored work nobody kept. A tag outside the
+  branch's history is now kept as `longhaul/superseded/<task>/<sha>` and the task
+  is tagged where it landed. A tag inside the history still never moves, and
+  rollback refuses a checkpoint outside it.
+  *Found while settling t3:* the author picked Circuit, the placeholder palette.
+  There is no command to settle a parked task yet, so it was marked done by hand.
+
+- **`f1af1ad` fix(orchestrator): a timed-out task retries in a fresh session.**
   The day-3 design task timed out, and its retry resumed the same session. It
   cost $6.43, against $2.48 for a fresh run of the same kind of task: a resumed
   session re-reads its entire conversation, several million cached tokens, on

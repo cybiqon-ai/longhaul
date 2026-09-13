@@ -2,6 +2,17 @@
 
 ## 2026-09-13
 
+* **Update**: checkpoints on **discarded work** were reported as real ones.
+  `gitops.tag()` returned an existing tag's name without checking where it
+  pointed. On Neon Drift every `longhaul/done/*` tag was on a discarded commit
+  after tasks were redone, and t1 had none. Stale tags are now superseded, and
+  rollback refuses a checkpoint outside the branch's history. See
+  [operating](/architecture/operating.md).
+
+* **Update**: the author settled Neon Drift t3 and picked **Circuit**, the
+  placeholder palette. There is no command to settle a parked task, so it was
+  marked done by hand; `longhaul approve` is v0.4's shared command layer.
+
 * **Update**: a timed-out task now **retries in a fresh session** rather than
   resuming. The resumed day-3 retry cost $6.43, against $2.48 for a fresh design
   run, because a resumed session re-reads its entire conversation on every turn,

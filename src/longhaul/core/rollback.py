@@ -17,7 +17,7 @@ from pathlib import Path
 
 from ..schema.plan import Plan
 from ..schema.state import PENDING, State
-from .gitops import tag_name
+from .gitops import in_history, tag_name
 from .worktree import git
 
 
@@ -72,6 +72,15 @@ def plan_rollback(plan: Plan, state: State, day: int, root: Path) -> Rollback:
 
     result.target = target
     result.sha = git("rev-list", "-n", "1", target, cwd=root, check=False) or None
+    if result.sha and not in_history(result.sha, root):
+        # Resetting to a commit outside this branch's history restores work
+        # that was discarded, and drops everything built since.
+        result.problems.append(
+            f"checkpoint {target} points at {result.sha[:7]}, which is not in this "
+            "branch's history — it marks discarded work, so rolling back to it "
+            "would restore that work and drop what replaced it"
+        )
+        return result
     result.tags_removed = [
         tag_name(t) for t in result.tasks
         if git("tag", "--list", tag_name(t), cwd=root, check=False).strip()
