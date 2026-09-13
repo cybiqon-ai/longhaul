@@ -1,5 +1,28 @@
 # Update Log
 
+## 2026-09-13
+
+* **Update**: `limits.minutes_per_task` was **read by nothing**. The config
+  documented a 60-minute ceiling and [supervision](/architecture/supervision.md)
+  listed it; the real limit was a hard-coded 1,800 s default in the driver.
+  Found watching the design task approach 30 minutes. The Coder's timeout now
+  comes from the config, with a test asserting it.
+
+* **Update**: a timed-out agent call discarded its session id, so the retry
+  started the task over. The stream names the session in its very first event,
+  so it is now recovered from the partial output and the retry resumes the work
+  already done.
+
+* **Update**: the retried day-2 task routed the engine-purity guard through the
+  test step CI already runs, rather than adding a dedicated CI step as its
+  criterion asked. Verified that the substance holds — a forbidden import turns
+  `flutter test` red. But the Coder avoided the workflow edit because the resumed
+  session still carried attempt 1's "this needs a human" rejection, from a gate
+  rule that had since been relaxed. Two lessons: retry feedback can carry a
+  constraint that is no longer true, and **nothing checks acceptance criteria**.
+  The task was marked `done` with one criterion met in substance and not in
+  letter. That is the Reviewer's job, and it does not exist yet.
+
 ## 2026-08-30
 
 * **Creation**: [Proving it](/architecture/proving-it.md) — the Proof gate, the

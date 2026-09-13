@@ -74,14 +74,23 @@ class CliDriver:
         except FileNotFoundError as exc:
             raise ClaudeAuthError(f"{self.binary} is not on PATH") from exc
         except subprocess.TimeoutExpired as exc:
-            self._persist(request, (exc.stdout or b"").decode("utf-8", "replace")
-                          if isinstance(exc.stdout, bytes) else (exc.stdout or ""))
+            partial = exc.stdout or ""
+            if isinstance(partial, bytes):
+                partial = partial.decode("utf-8", "replace")
+            self._persist(request, partial)
+            events = self._events(partial)
+            # The stream announces the session id in its first event, long
+            # before the result. Keeping it means a retry can resume the work
+            # the agent had already done instead of starting the task again.
+            session = next((e["session_id"] for e in events if e.get("session_id")), None)
             return AgentResult(
                 ok=False,
                 text="",
+                session_id=session,
                 duration_s=time.monotonic() - started,
                 exit_code=124,
                 error=f"timed out after {request.timeout_s}s",
+                raw_events=events,
             )
 
         elapsed = time.monotonic() - started

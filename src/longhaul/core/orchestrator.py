@@ -127,6 +127,9 @@ def run_task(
             append_system_prompt=roles.load(role),
             resume_session=ts.coder_session if previous else None,
             transcript_path=str(transcript_path),
+            # The ceiling the config documents. It was read by nothing: the
+            # real limit was a hard-coded 30 minutes in the driver.
+            timeout_s=config.limits.minutes_per_task * 60,
         )
     )
     retries = CliDriverRetries(result)

@@ -500,3 +500,31 @@ def test_a_secret_in_the_diff_blocks_the_task(repo, monkeypatch):
     out = orchestrator.run_task(FakeDriver(), p, p.task("t1"), State(), repo)
     assert out.status == FAILED
     assert "GitHub token" in out.detail
+
+
+def test_minutes_per_task_actually_governs_the_agent_timeout(repo, monkeypatch):
+    """The config documented a 60-minute ceiling that nothing read; the real
+    limit was a hard-coded 30 minutes in the driver."""
+    from longhaul.schema.config import Config, Limits
+
+    patch_coder_writes(monkeypatch)
+    patch_devops(monkeypatch, green())
+    driver = FakeDriver()
+    p = plan()
+    orchestrator.run_task(driver, p, p.task("t1"), State(), repo,
+                          config=Config(limits=Limits(minutes_per_task=45)))
+    assert driver.requests[0].timeout_s == 45 * 60
+
+
+def test_a_timed_out_attempt_resumes_its_session_on_retry(repo, monkeypatch):
+    patch_coder_writes(monkeypatch)
+    patch_devops(monkeypatch, green())
+    driver = FakeDriver(
+        AgentResult(ok=False, text="", session_id="sess-t", error="timed out after 1800s"),
+        AgentResult(ok=True, text="", session_id="sess-t", cost_usd=0.1),
+    )
+    s = State()
+    p = plan()
+    orchestrator.run_task(driver, p, p.task("t1"), s, repo)
+    orchestrator.run_task(driver, p, p.task("t1"), s, repo)
+    assert driver.requests[1].resume_session == "sess-t"

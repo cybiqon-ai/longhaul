@@ -10,6 +10,18 @@ useful part of the history to a reader.
 
 ## [Unreleased]
 
+### 2026-09-13
+
+- **`8ab8822` fix(supervisor): `minutes_per_task` now actually limits a task.**
+  The config documented a 60-minute ceiling that no code read; the real limit
+  was a hard-coded 30 minutes in the driver. Found watching a design task run
+  toward it. A timed-out call also discarded its session id, so a retry started
+  the task over — the id is now recovered from the partial stream so the retry
+  resumes instead.
+  *Also recorded:* a retried task honoured a gate rejection that had stopped
+  being true, and was marked done with a criterion met in substance but not in
+  letter. Nothing checks acceptance criteria yet; that is the unbuilt Reviewer.
+
 ### 2026-08-30
 
 - **`edba5ed` fix(gates): adding a CI step is not weakening CI.** With the

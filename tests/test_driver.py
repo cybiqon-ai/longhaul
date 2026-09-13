@@ -146,3 +146,46 @@ def test_an_unwritable_transcript_does_not_break_the_run(tmp_path, monkeypatch):
     blocked.write_text("x")
     result = CliDriver().run(req(transcript_path=str(blocked / "nested" / "t.jsonl")))
     assert result.ok
+
+
+def test_a_timeout_keeps_the_session_so_a_retry_can_resume(monkeypatch):
+    """The stream names the session in its first event. Losing it on a timeout
+    meant a retry started the task over, discarding work already done."""
+    import subprocess
+
+    partial = stream({"type": "system", "subtype": "init", "session_id": "sess-9"},
+                     {"type": "assistant", "session_id": "sess-9"})
+
+    def boom(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="claude", timeout=5, output=partial.encode())
+
+    monkeypatch.setattr("longhaul.driver.cli_driver.subprocess.run", boom)
+    result = CliDriver().run(req(timeout_s=5))
+    assert not result.ok
+    assert result.exit_code == 124
+    assert result.session_id == "sess-9"
+    assert "timed out after 5s" in result.error
+
+
+def test_a_timeout_before_any_output_has_no_session(monkeypatch):
+    import subprocess
+
+    def boom(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="claude", timeout=5, output=None)
+
+    monkeypatch.setattr("longhaul.driver.cli_driver.subprocess.run", boom)
+    assert CliDriver().run(req()).session_id is None
+
+
+def test_a_timeout_still_writes_the_partial_transcript(tmp_path, monkeypatch):
+    import subprocess
+
+    partial = stream({"type": "system", "subtype": "init", "session_id": "s"})
+
+    def boom(*a, **k):
+        raise subprocess.TimeoutExpired(cmd="claude", timeout=5, output=partial.encode())
+
+    monkeypatch.setattr("longhaul.driver.cli_driver.subprocess.run", boom)
+    path = tmp_path / "t.jsonl"
+    CliDriver().run(req(transcript_path=str(path)))
+    assert path.read_text() == partial
